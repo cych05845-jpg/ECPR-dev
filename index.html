@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ECPR v4.1-DEV 急救啟動系統｜嘉義基督教醫院（測試版）</title>
+<title>ECPR v4.1 急救啟動系統｜嘉義基督教醫院</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap');
 
@@ -535,7 +535,7 @@
       <div class="icon">🫀</div>
       <h1>ECPR 急救系統</h1>
       <p>嘉義基督教醫院 急診部</p>
-      <p style="font-size:.65rem;color:var(--orange);margin-top:2px">v4.1-DEV 測試版 — 2026.04.14</p>
+      <p style="font-size:.65rem;color:var(--text3);margin-top:2px">v4.1 — 2026.04.13</p>
     </div>
 
     <div id="loginFormWrap">
@@ -903,13 +903,14 @@
         <button class="btn bgh btn-sm" onclick="loadCases()">🔄 重整</button>
       </div>
 
-      <!-- 進行中案件 (置頂) -->
+      <!-- 進行中案件摘要大卡 -->
       <div id="trackActiveSummary"></div>
 
-      <!-- 所有案件列表 -->
-      <div id="trackCaseList">
-        <div class="empty"><div class="ei">📋</div><p>載入中...</p></div>
-      </div>
+      <!-- 進行中案件列表 -->
+      <div id="trackActiveList"></div>
+
+      <!-- 完成案件列表 -->
+      <div id="trackClosedList"></div>
     </div>
   </div>
   <!-- ── CASE DETAIL PAGE ── -->
@@ -3034,12 +3035,15 @@ async function loadCases() {
     '':          { lbl:'通報中',   cls:'b-yellow' }
   };
 
-  // 進行中案件置頂（用 caseStatus() 處理空字串欄位）
-  const active = res.cases.filter(c => ['pending','active','activated'].includes(caseStatus(c)));
-  const closed = res.cases.filter(c => !['pending','active','activated'].includes(caseStatus(c)));
-  const sorted = [...active, ...closed].reverse();
+  const ACTIVE_STATUS = ['pending','active','activated'];
+  const active = res.cases.filter(c => ACTIVE_STATUS.includes(caseStatus(c)));
+  const closed = res.cases.filter(c => !ACTIVE_STATUS.includes(caseStatus(c)));
 
-  wrap.innerHTML = sorted.map(c => {
+  // 進行中：最新在上
+  const activeWrap = document.getElementById('trackActiveList');
+  const closedWrap = document.getElementById('trackClosedList');
+
+  const renderCard = c => {
     const sv = caseStatus(c);
     const isAlert     = ['pending','active',''].includes(sv);
     const isActivated = sv === 'activated';
@@ -3062,7 +3066,25 @@ async function loadCases() {
       ${ecprTime ? `<div class="cc-sub" style="color:#FF8080;margin-top:4px">${ecprTime}</div>` : ''}
       ${recordBtn}
     </div>`;
-  }).join('');
+  };
+
+  if (activeWrap) {
+    if (active.length > 0) {
+      activeWrap.innerHTML = '<div style="font-size:.78rem;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin:8px 0 6px">🔴 進行中</div>'
+        + active.reverse().map(renderCard).join('');
+    } else {
+      activeWrap.innerHTML = '';
+    }
+  }
+
+  if (closedWrap) {
+    if (closed.length > 0) {
+      closedWrap.innerHTML = '<div style="font-size:.78rem;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin:14px 0 6px">🟢 完成案件</div>'
+        + closed.reverse().map(renderCard).join('');
+    } else {
+      closedWrap.innerHTML = '';
+    }
+  }
 }
 
 function viewCase(encoded) {
