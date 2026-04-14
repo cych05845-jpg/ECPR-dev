@@ -1539,6 +1539,12 @@ function initApp() {
   loadCases();
   // 有任務的角色自動載入任務頁
   if (['np','dr','cvs','or','perf','nurse'].includes(CU.role)) loadMission();
+  // 預載 accounts cache 供追蹤頁職類到位判斷使用
+  if (!sessionStorage.getItem('ecpr_users_cache')) {
+    api('getAccounts').then(r => {
+      if (r.success && r.accounts) sessionStorage.setItem('ecpr_users_cache', JSON.stringify(r.accounts));
+    });
+  }
 }
 
 function updateUserUI() {
@@ -2986,19 +2992,37 @@ function updateTrackSummary(c) {
           const msKey2 = 'ecpr_ms_' + c.CaseID;
           const ms2 = JSON.parse(localStorage.getItem(msKey2)||'{}');
           let done = false;
+          let doneBy = '';
           if (r === 'np' || r === 'dr') {
-            done = !!(c.ecprBy);
+            // 啟動者即為到位
+            if (c.ecprBy && c.ecprByRole) {
+              const byRole = Object.keys(ROLES).find(k => ROLES[k].label === c.ecprByRole);
+              done = (byRole === r) || (r === 'dr' && byRole === 'np') || (r === 'np' && byRole === 'dr');
+              if (done) doneBy = c.ecprBy;
+            }
           } else if (r === 'nurse') {
             done = !!ms2.icu || !!c.ms_icu;
+            if (done) doneBy = c.ms_icu_by || '';
           } else {
-            done = !!(c['ack_'+r]);
+            // CVS/OR/PERF：掃描 ack_ 開頭的欄位
+            // 從 sessionStorage 的 accounts cache 查對應職類帳號
+            const accounts = JSON.parse(sessionStorage.getItem('ecpr_users_cache') || '[]');
+            const roleUsers = accounts.filter(a => a.role === r).map(a => a.username);
+            // 檢查 Sheets 裡有沒有這些 username 的 ack
+            done = roleUsers.some(u => !!c['ack_'+u]);
+            if (done) {
+              const ackUser = roleUsers.find(u => !!c['ack_'+u]);
+              const acct = accounts.find(a => a.username === ackUser);
+              doneBy = acct?.displayname || ackUser || '';
+            }
           }
           const bCol = done ? 'rgba(26,158,92,.3)' : 'var(--border)';
           const tCol = done ? 'var(--green-light)' : 'var(--text3)';
+          const statusTxt = done ? ('✅ ' + (doneBy || '已到位')) : '—';
           return '<div style="display:flex;align-items:center;gap:8px;padding:7px;background:var(--bg4);border-radius:6px;border:1px solid ' + bCol + '">'
             + '<span>' + rr.icon + '</span>'
             + '<span style="font-size:.82rem;flex:1">' + rr.label + '</span>'
-            + '<span style="font-size:.8rem;color:' + tCol + '">' + (done?'✅ 已到位':'—') + '</span>'
+            + '<span style="font-size:.8rem;color:' + tCol + '">' + statusTxt + '</span>'
             + '</div>';
         }).join('')}      </div>
     </div>
@@ -3016,13 +3040,15 @@ function updateTrackSummary(c) {
 }
 
 async function loadCases() {
-  const wrap = document.getElementById('trackCaseList');
-  if (!wrap) return;
-  wrap.innerHTML = '<div class="empty"><div class="ei">⏳</div><p>載入中...</p></div>';
+  const activeWrapL = document.getElementById('trackActiveList');
+  const closedWrapL = document.getElementById('trackClosedList');
+  if (!activeWrapL && !closedWrapL) return;
+  if (activeWrapL) activeWrapL.innerHTML = '<div class="empty"><div class="ei">⏳</div><p>載入中...</p></div>';
 
   const res = await api('getCases');
   if (!res.success || !res.cases || !res.cases.length) {
-    wrap.innerHTML = '<div class="empty"><div class="ei">📋</div><p>無案件記錄</p></div>';
+    if (activeWrapL) activeWrapL.innerHTML = '<div class="empty"><div class="ei">📋</div><p>無案件記錄</p></div>';
+    if (closedWrapL) closedWrapL.innerHTML = '';
     return;
   }
 
