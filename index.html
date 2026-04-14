@@ -1596,7 +1596,15 @@ function showPage(pageId, navBtn = null) {
   if (navBtn) navBtn.classList.add('on');
   else document.querySelectorAll(`[data-page="${pageId}"]`).forEach(b => b.classList.add('on'));
 
-  if (pageId === 'pageTrack') { loadCases(); buildTrackSummary(); setTimeout(initDatePicker, 100); }
+  if (pageId === 'pageTrack') {
+    loadCases(); buildTrackSummary(); setTimeout(initDatePicker, 100);
+    // 每10秒自動重整職類到位狀態
+    if (window._trackPoll) clearInterval(window._trackPoll);
+    window._trackPoll = setInterval(() => {
+      if (document.querySelector('#pageTrack.active')) buildTrackSummary();
+      else { clearInterval(window._trackPoll); window._trackPoll = null; }
+    }, 10000);
+  }
   if (pageId === 'pageMission') {
     loadMission();
     // 如果有進行中通知，確認通知頁紅點
@@ -2973,7 +2981,19 @@ async function npActivate() {
 //  SPECIALIST VIEW (DR / CVS / OR / PERF)
 // ════════════════════════════════════════
 function buildTrackSummary() {
-  if (activeCase) updateTrackSummary(activeCase);
+  if (!activeCase) return;
+  // 從 Sheets 重新 fetch 最新案件資料（含 ack_ 欄位）
+  api('getCases').then(res => {
+    if (!res.success || !res.cases) { updateTrackSummary(activeCase); return; }
+    const fresh = res.cases.find(c => c.CaseID === activeCase.CaseID);
+    if (fresh) {
+      // 同步更新 activeCase 的 ack 欄位
+      Object.keys(fresh).forEach(k => { if (k.startsWith('ack_') || k === 'ecprBy' || k === 'ecprByUser') activeCase[k] = fresh[k]; });
+      updateTrackSummary(fresh);
+    } else {
+      updateTrackSummary(activeCase);
+    }
+  });
 }
 
 function updateTrackSummary(c) {
