@@ -910,7 +910,19 @@
       <div id="trackActiveList"></div>
 
       <!-- 完成案件列表 -->
-      <div id="trackClosedList"></div>
+      <div id="trackClosedSection">
+        <div style="display:flex;align-items:center;gap:8px;margin:14px 0 8px;flex-wrap:wrap">
+          <div style="font-size:.78rem;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;flex:1">🟢 完成案件</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input type="date" id="searchDateFrom" style="padding:5px 8px;background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem;font-family:inherit">
+            <span style="font-size:.75rem;color:var(--text3)">—</span>
+            <input type="date" id="searchDateTo" style="padding:5px 8px;background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem;font-family:inherit">
+            <button class="btn bgh btn-sm" onclick="searchCases()" style="font-size:.75rem;padding:5px 10px">🔍 查詢</button>
+            <button class="btn bgh btn-sm" onclick="resetCaseSearch()" style="font-size:.75rem;padding:5px 8px">✕</button>
+          </div>
+        </div>
+        <div id="trackClosedList"></div>
+      </div>
     </div>
   </div>
   <!-- ── CASE DETAIL PAGE ── -->
@@ -1584,7 +1596,7 @@ function showPage(pageId, navBtn = null) {
   if (navBtn) navBtn.classList.add('on');
   else document.querySelectorAll(`[data-page="${pageId}"]`).forEach(b => b.classList.add('on'));
 
-  if (pageId === 'pageTrack') { loadCases(); buildTrackSummary(); }
+  if (pageId === 'pageTrack') { loadCases(); buildTrackSummary(); setTimeout(initDatePicker, 100); }
   if (pageId === 'pageMission') {
     loadMission();
     // 如果有進行中通知，確認通知頁紅點
@@ -3062,10 +3074,28 @@ async function loadCases() {
   };
 
   const ACTIVE_STATUS = ['pending','active','activated'];
-  const active = res.cases.filter(c => ACTIVE_STATUS.includes(caseStatus(c)));
-  const closed = res.cases.filter(c => !ACTIVE_STATUS.includes(caseStatus(c)));
+  const now72 = Date.now();
+  const HR72 = 72 * 60 * 60 * 1000;
 
-  // 進行中：最新在上
+  // 進行中：超過72小時也隱藏
+  const active = res.cases.filter(c => {
+    if (!ACTIVE_STATUS.includes(caseStatus(c))) return false;
+    if (c.reportTime && (now72 - new Date(c.reportTime).getTime()) > HR72) return false;
+    return true;
+  });
+
+  // 完成：預設只顯示72小時內，搜尋時顯示全部
+  const allClosed = res.cases.filter(c => !ACTIVE_STATUS.includes(caseStatus(c)));
+  const isSearchMode = window._caseSearchMode || false;
+  const closed = isSearchMode ? allClosed : allClosed.filter(c => {
+    const t = c.closedTime || c.reportTime;
+    if (!t) return true;
+    return (now72 - new Date(t).getTime()) <= HR72;
+  });
+
+  // 儲存全部完成案件供搜尋使用
+  window._allClosedCases = allClosed;
+
   const activeWrap = document.getElementById('trackActiveList');
   const closedWrap = document.getElementById('trackClosedList');
 
@@ -3111,6 +3141,79 @@ async function loadCases() {
       closedWrap.innerHTML = '';
     }
   }
+}
+
+function searchCases() {
+  const from = document.getElementById('searchDateFrom').value;
+  const to   = document.getElementById('searchDateTo').value;
+  const wrap = document.getElementById('trackClosedList');
+  if (!wrap || !window._allClosedCases) return;
+
+  let filtered = window._allClosedCases;
+  if (from) {
+    const fromDate = new Date(from);
+    filtered = filtered.filter(c => {
+      const t = c.closedTime || c.reportTime;
+      return t && new Date(t) >= fromDate;
+    });
+  }
+  if (to) {
+    const toDate = new Date(to + 'T23:59:59');
+    filtered = filtered.filter(c => {
+      const t = c.closedTime || c.reportTime;
+      return t && new Date(t) <= toDate;
+    });
+  }
+
+  window._caseSearchMode = true;
+  if (filtered.length === 0) {
+    wrap.innerHTML = '<div class="empty"><p style="font-size:.85rem">此範圍無案件記錄</p></div>';
+    return;
+  }
+
+  const renderClosedCard = c => {
+    const sv = caseStatus(c);
+    const isDone = ['icuTransfer','closed'].includes(sv);
+    const isCancelled = sv === 'cancelled';
+    const colorCls = (isDone||isCancelled) ? 'cc-done' : 'cc-alert';
+    const statusLabel = isDone ? '🟢 完成' : isCancelled ? '⚫ 不啟動' : '🟠 預警通報';
+    const dt = c.reportTime ? new Date(c.reportTime).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+    const ecprTime = c.ecprTime ? '⚡ ' + new Date(c.ecprTime).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}) : '';
+    const encoded = encodeURIComponent(JSON.stringify(c));
+    const recordBtn = (isDone && c.ecprRecord)
+      ? `<button class="btn bgh btn-sm" style="margin-top:8px;font-size:.75rem" onclick="event.stopPropagation();openRecordForCase('${c.CaseID}')">📋 查看啟動紀錄</button>`
+      : '';
+    return `<div class="cc ${colorCls}" onclick="viewCase('${encoded}')">
+      <div class="cc-row">
+        <span class="cc-id">${c.CaseID||'?'}</span>
+        <span class="cc-name">${statusLabel}</span>
+        <span class="cc-time">${dt}</span>
+      </div>
+      ${ecprTime ? `<div class="cc-sub" style="color:#FF8080;margin-top:4px">${ecprTime}</div>` : ''}
+      ${recordBtn}
+    </div>`;
+  };
+
+  wrap.innerHTML = filtered.reverse().map(renderClosedCard).join('');
+  toast(`找到 ${filtered.length} 筆案件`, 'ok');
+}
+
+function resetCaseSearch() {
+  window._caseSearchMode = false;
+  document.getElementById('searchDateFrom').value = '';
+  document.getElementById('searchDateTo').value = '';
+  loadCases();
+}
+
+// 設定日期選擇器預設值（今天往前72小時）
+function initDatePicker() {
+  const to = new Date();
+  const from = new Date(Date.now() - 72*60*60*1000);
+  const fmt = d => d.toISOString().split('T')[0];
+  const fromEl = document.getElementById('searchDateFrom');
+  const toEl = document.getElementById('searchDateTo');
+  if (fromEl && !fromEl.value) fromEl.value = fmt(from);
+  if (toEl && !toEl.value) toEl.value = fmt(to);
 }
 
 function viewCase(encoded) {
