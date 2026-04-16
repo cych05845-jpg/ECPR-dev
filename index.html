@@ -498,6 +498,9 @@
   .ni { position:relative; }
 
 </style>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js"></script>
 </head>
 <body>
 
@@ -1349,6 +1352,58 @@
 
 <script>
 // ════════════════════════════════════════
+//  FCM 設定
+// ════════════════════════════════════════
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBO_-bLFvbkodDLmnZBGRIMJ_ODYDt65BM",
+  authDomain: "ecpr-push.firebaseapp.com",
+  projectId: "ecpr-push",
+  storageBucket: "ecpr-push.firebasestorage.app",
+  messagingSenderId: "624087518261",
+  appId: "1:624087518261:web:fb0392ad20888a604c757c"
+};
+const FCM_VAPID_KEY = 'BAt3EdXHXhSH24Q4ucDfHRQ4QH5xM5hpSOfNayjhZeY0En4wOruXDSOsF-oL6p-eb4cxYts2oesoPuh83dX_I_o';
+
+let fcmMessaging = null;
+
+async function initFCM() {
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+    fcmMessaging = firebase.messaging();
+
+    // 請求通知權限
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      console.log('FCM: 通知權限未允許');
+      return;
+    }
+
+    // 取得 Token
+    const token = await fcmMessaging.getToken({ vapidKey: FCM_VAPID_KEY });
+    if (token && CU?.username) {
+      console.log('FCM Token:', token.substring(0,20) + '...');
+      // 存到 Sheets
+      api('updateFCMToken', { username: CU.username, token });
+    }
+
+    // 前景推播處理（網頁開著時）
+    fcmMessaging.onMessage(payload => {
+      console.log('[FCM] Foreground message:', payload);
+      const { title, body } = payload.notification || {};
+      toast(`🔔 ${title}: ${body}`, 'ok');
+      // 如果是啟動通知，自動重整任務頁
+      if (payload.data?.type === 'activated') {
+        loadMission();
+        if (document.querySelector('#pageTrack.active')) buildTrackSummary();
+      }
+    });
+
+  } catch(e) {
+    console.log('FCM init error:', e.message);
+  }
+}
+
+// ════════════════════════════════════════
 //  CONFIG
 // ════════════════════════════════════════
 const API = 'https://script.google.com/macros/s/AKfycbzR1dVO8gG7ZafTDq4BwHjVgLiFOlx2iHMwS3adSaUKe4Ek0U--bmH9xSVwQ442HXwq/exec';
@@ -1557,6 +1612,8 @@ function initApp() {
       if (r.success && r.accounts) sessionStorage.setItem('ecpr_users_cache', JSON.stringify(r.accounts));
     });
   }
+  // 初始化 FCM 推播
+  setTimeout(initFCM, 1000);
 }
 
 function updateUserUI() {
