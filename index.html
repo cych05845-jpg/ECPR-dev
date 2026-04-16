@@ -2438,14 +2438,49 @@ function showRecordModal(record, caseId) {
   document.getElementById('mTitle').textContent = '📋 ECPR 啟動紀錄';
   const msgEl = document.getElementById('mMsg');
   msgEl.innerHTML = '';
+
+  // 一鍵複製按鈕
+  const copyBtn = document.createElement('button');
+  copyBtn.style.cssText = 'width:100%;padding:12px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:.95rem;font-weight:700;cursor:pointer;margin-bottom:10px;font-family:inherit';
+  copyBtn.textContent = '📋 一鍵複製全部內容';
+  copyBtn.onclick = async function() {
+    try {
+      await navigator.clipboard.writeText(record);
+      copyBtn.textContent = '✅ 已複製！可貼到護理記錄';
+      copyBtn.style.background = 'var(--green)';
+      setTimeout(() => {
+        copyBtn.textContent = '📋 一鍵複製全部內容';
+        copyBtn.style.background = 'var(--blue)';
+      }, 3000);
+    } catch(e) {
+      // 舊版瀏覽器 fallback
+      const ta = document.createElement('textarea');
+      ta.value = record;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      copyBtn.textContent = '✅ 已複製！';
+      copyBtn.style.background = 'var(--green)';
+      setTimeout(() => {
+        copyBtn.textContent = '📋 一鍵複製全部內容';
+        copyBtn.style.background = 'var(--blue)';
+      }, 3000);
+    }
+  };
+  msgEl.appendChild(copyBtn);
+
+  // 紀錄內容
   const pre = document.createElement('pre');
   pre.style.cssText = 'background:var(--bg4);border:1px solid var(--border2);border-radius:8px;padding:14px;font-size:.88rem;line-height:1.9;white-space:pre-wrap;font-family:inherit;color:var(--text2);user-select:all;margin:0;cursor:text';
   pre.textContent = record;
   msgEl.appendChild(pre);
+
   const hint = document.createElement('div');
   hint.style.cssText = 'font-size:.75rem;color:var(--text3);margin-top:8px';
-  hint.textContent = '▲ 點選文字可全選複製，可直接貼到護理記錄';
+  hint.textContent = '▲ 點選文字也可全選複製';
   msgEl.appendChild(hint);
+
   const btn = document.getElementById('mOkBtn');
   btn.textContent = '✅ 完成';
   btn.className = 'btn-mok green';
