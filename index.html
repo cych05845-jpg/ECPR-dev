@@ -1474,6 +1474,37 @@ function caseAgeGroup(c) {
 // ════════════════════════════════════════
 //  TOAST
 // ════════════════════════════════════════
+
+// FCM 除錯工具（手機測試用）
+async function debugFCM() {
+  const lines = [];
+  lines.push('通知權限：' + Notification.permission);
+  lines.push('SW支援：' + ('serviceWorker' in navigator));
+  lines.push('登入帳號：' + (CU ? CU.username : '未登入'));
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    lines.push('SW已註冊：' + (reg ? '是' : '否'));
+  } catch(e) {
+    lines.push('SW錯誤：' + e.message);
+  }
+  if (typeof fcmMessaging !== 'undefined' && fcmMessaging) {
+    try {
+      const token = await fcmMessaging.getToken({ vapidKey: FCM_VAPID_KEY });
+      lines.push('Token：' + (token ? token.substring(0,20)+'...' : '無'));
+      if (token && CU) {
+        const r = await api('updateFCMToken', { username: CU.username, token });
+        lines.push('存Token：' + (r.success ? '成功' : '失敗'));
+      }
+    } catch(e) {
+      lines.push('Token錯誤：' + e.message);
+    }
+  } else {
+    lines.push('FCM未初始化，重新嘗試...');
+    await initFCM();
+  }
+  alert(lines.join('\n'));
+}
+
 function toast(msg, type='') {
   const t = document.getElementById('toast');
   t.textContent = msg;
