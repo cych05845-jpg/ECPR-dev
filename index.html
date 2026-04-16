@@ -1228,10 +1228,13 @@
   <!-- ── ADMIN PAGE ── -->
   <div class="page" id="pageAdmin">
     <div class="content">
-      <div class="tabs">
-        <button class="tab on" onclick="adminTab('accounts',this)">帳號</button>
-        <button class="tab" onclick="adminTab('schedule',this)">排班</button>
-        <button class="tab" onclick="adminTab('settings',this)">設定</button>
+      <div class="flex aic g8" style="margin-bottom:10px">
+        <div class="tabs" style="flex:1">
+          <button class="tab on" onclick="adminTab('accounts',this)">帳號</button>
+          <button class="tab" onclick="adminTab('schedule',this)">排班</button>
+          <button class="tab" onclick="adminTab('settings',this)">設定</button>
+        </div>
+        <button class="btn bgh btn-sm" onclick="debugFCM()" style="font-size:.75rem;flex-shrink:0">🔔 FCM測試</button>
       </div>
 
       <!-- ACCOUNTS -->
@@ -1645,6 +1648,9 @@ function initApp() {
   }
   // 初始化 FCM 推播
   setTimeout(initFCM, 1000);
+  // 顯示 FCM 測試按鈕
+  const fcmBtn = document.getElementById('fcmTestBtn');
+  if (fcmBtn) fcmBtn.style.display = 'block';
 }
 
 function updateUserUI() {
