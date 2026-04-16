@@ -1381,11 +1381,21 @@ async function initFCM() {
       return;
     }
 
+    // 手動註冊 Service Worker（指定正確路徑）
+    let swReg = null;
+    try {
+      swReg = await navigator.serviceWorker.register('./firebase-messaging-sw.js', { scope: './' });
+      console.log('FCM SW registered:', swReg.scope);
+    } catch(swErr) {
+      console.log('SW register error:', swErr.message);
+    }
+
     // 取得 Token
-    const token = await fcmMessaging.getToken({ vapidKey: FCM_VAPID_KEY });
+    const tokenOptions = { vapidKey: FCM_VAPID_KEY };
+    if (swReg) tokenOptions.serviceWorkerRegistration = swReg;
+    const token = await fcmMessaging.getToken(tokenOptions);
     if (token && CU?.username) {
       console.log('FCM Token:', token.substring(0,20) + '...');
-      // 存到 Sheets
       api('updateFCMToken', { username: CU.username, token });
     }
 
@@ -1393,9 +1403,8 @@ async function initFCM() {
     fcmMessaging.onMessage(payload => {
       console.log('[FCM] Foreground message:', payload);
       const { title, body } = payload.notification || {};
-      toast(`🔔 ${title}: ${body}`, 'ok');
-      // 如果是啟動通知，自動重整任務頁
-      if (payload.data?.type === 'activated') {
+      toast('🔔 ' + title + ': ' + body, 'ok');
+      if (payload.data && payload.data.type === 'activated') {
         loadMission();
         if (document.querySelector('#pageTrack.active')) buildTrackSummary();
       }
