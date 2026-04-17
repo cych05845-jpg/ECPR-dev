@@ -312,6 +312,84 @@
   .emt-sec-title { font-size:.92rem;font-weight:800;color:rgba(255,255,255,.85);letter-spacing:.05em;margin-bottom:10px; }
   .emt-sec-title.excl-title { color:#FF8080;background:rgba(217,43,43,.12);padding:7px 12px;border-radius:8px;border-left:3px solid var(--red); }
   .emt-big-btn-row { display:grid;grid-template-columns:1fr 1fr;gap:12px; }
+  /* EMT 新版 4欄 Grid */
+  .emt-grid4 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin: 8px 0;
+  }
+  @media (min-width: 600px) {
+    .emt-grid4 { grid-template-columns: repeat(4, 1fr); }
+  }
+  .emt-sel-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 18px 8px;
+    background: var(--bg3);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all .2s;
+    min-height: 110px;
+    gap: 6px;
+    touch-action: manipulation;
+  }
+  .emt-sel-btn.selected {
+    background: rgba(26,158,92,.15);
+    border-color: var(--green);
+  }
+  .esb-num {
+    font-size: .75rem;
+    color: var(--text3);
+    font-weight: 600;
+  }
+  .esb-lbl {
+    font-size: 1.15rem;
+    font-weight: 900;
+    color: var(--text);
+    text-align: center;
+    line-height: 1.2;
+  }
+  .emt-sel-btn.selected .esb-lbl { color: var(--green-light); }
+  .esb-hint {
+    font-size: .72rem;
+    color: var(--text3);
+    text-align: center;
+  }
+  /* 排除條件橫向 */
+  .emt-excl-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .emt-excl-btn {
+    flex: 1;
+    min-width: 120px;
+    padding: 12px 10px;
+    background: var(--bg3);
+    border: 2px solid rgba(217,43,43,.3);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: .9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    touch-action: manipulation;
+  }
+  .emt-excl-btn.selected {
+    background: rgba(217,43,43,.15);
+    border-color: var(--red);
+    color: #FF8080;
+  }
+  .emt-excl-btn .excl-check { font-size: 1.1rem; }
+  .emt-excl-btn.selected .excl-check::before { content: "✕"; }
+
   .emt-big-btn {
     display:flex;flex-direction:column;align-items:center;justify-content:center;
     gap:8px;padding:20px 12px;
@@ -646,108 +724,62 @@
       </div>
 
       <div id="emtQuiz">
-        <div class="card" style="border-color:rgba(232,114,12,.3)">
-          <div style="text-align:center;padding:4px 0 14px">
-            <div style="font-size:1.25rem;font-weight:900;letter-spacing:.05em">🚑 ECPR 院前初篩</div>
-            <div style="font-size:.78rem;color:var(--text3);margin-top:4px">點選符合條件，完成後送出通報</div>
-          </div>
+        <div style="padding:12px 0 8px;text-align:center">
+          <div style="font-size:1.3rem;font-weight:900;letter-spacing:.05em;color:var(--orange)">ECPR 院前初篩</div>
+          <div style="font-size:.8rem;color:var(--text3);margin-top:4px">點選符合條件後送出通報</div>
+        </div>
 
-          <!-- ① 年齡 -->
-          <div class="emt-section">
-            <div class="emt-sec-title">① 年齡</div>
-            <div class="emt-big-btn-row">
-              <button class="emt-big-btn" id="ebtn_age_yes" onclick="emtBigSelect('age','yes',this)">
-                <span class="ebb-ico">🧑</span>
-                <span class="ebb-lbl">18 – 70 歲</span>
-                <span class="ebb-hint">符合年齡範圍</span>
-              </button>
-              <button class="emt-big-btn emt-big-btn-no" id="ebtn_age_no" onclick="emtBigSelect('age','no',this)">
-                <span class="ebb-ico">👴</span>
-                <span class="ebb-lbl">71 歲以上</span>
-                <span class="ebb-hint">超出建議年齡</span>
-              </button>
-            </div>
-          </div>
-
-          <hr>
-
-          <!-- ② AED 可電擊 -->
-          <div class="emt-section">
-            <div class="emt-sec-title">② AED 可電擊心律</div>
-            <div class="emt-big-btn-row">
-              <button class="emt-big-btn" id="ebtn_shock_yes" onclick="emtBigSelect('shock','yes',this)">
-                <span class="ebb-ico">⚡</span>
-                <span class="ebb-lbl">可電擊</span>
-                <span class="ebb-hint">VF / pVT</span>
-              </button>
-              <button class="emt-big-btn emt-big-btn-no" id="ebtn_shock_no" onclick="emtBigSelect('shock','no',this)">
-                <span class="ebb-ico">📴</span>
-                <span class="ebb-lbl">不可電擊</span>
-                <span class="ebb-hint">PEA / Asystole</span>
-              </button>
-            </div>
-          </div>
-
-          <hr>
-
-          <!-- ③ CPR 狀況 -->
-          <div class="emt-section">
-            <div class="emt-sec-title">③ CPR 狀況</div>
-            <div style="display:flex;flex-direction:column;gap:8px">
-              <button class="emt-big-btn emt-big-btn-wide" id="ebtn_cpr_ideal" onclick="emtBigSelect('cpr','ideal',this)">
-                <span class="ebb-ico">🟢</span>
-                <div><span class="ebb-lbl">CPR &lt; 30分 ＋ 有目擊 ＋ Bystander CPR</span><span class="ebb-hint">最佳條件，強烈建議啟動</span></div>
-              </button>
-              <button class="emt-big-btn emt-big-btn-wide emt-big-btn-border" id="ebtn_cpr_partial" onclick="emtBigSelect('cpr','partial',this)">
-                <span class="ebb-ico">🟡</span>
-                <div><span class="ebb-lbl">有持續 CPR（條件部分符合）</span><span class="ebb-hint">由 NP 評估決定</span></div>
-              </button>
-              <button class="emt-big-btn emt-big-btn-wide emt-big-btn-no" id="ebtn_cpr_no" onclick="emtBigSelect('cpr','no',this)">
-                <span class="ebb-ico">🔴</span>
-                <div><span class="ebb-lbl">CPR &gt; 60分 或 無 CPR</span><span class="ebb-hint">不符合時間條件</span></div>
-              </button>
-            </div>
-          </div>
-
-          <hr>
-
-          <!-- ④ 排除條件 -->
-          <div class="emt-section">
-            <div class="emt-sec-title excl-title">🚫 ④ 排除條件（有則勾選，任一項即不建議啟動）</div>
-            <div style="display:flex;flex-direction:column;gap:8px">
-              <button class="emt-excl" id="eexcl_terminal" data-key="excl_terminal" onclick="emtToggleExcl(this)">
-                <span class="ec-ico">🏥</span>
-                <div class="ec-main"><div class="ec-title">末期病人</div><div class="ec-hint">癌末、器官衰竭末期</div></div>
-                <span class="excl-check">○</span>
-              </button>
-              <button class="emt-excl" id="eexcl_bedridden" data-key="excl_bedridden" onclick="emtToggleExcl(this)">
-                <span class="ec-ico">🛏️</span>
-                <div class="ec-main"><div class="ec-title">長期臥床 &gt; 6 個月</div><div class="ec-hint">功能狀態差，預後不良</div></div>
-                <span class="excl-check">○</span>
-              </button>
-              <button class="emt-excl" id="eexcl_dementia" data-key="excl_dementia" onclick="emtToggleExcl(this)">
-                <span class="ec-ico">🧠</span>
-                <div class="ec-main"><div class="ec-title">嚴重失智 / 植物人</div><div class="ec-hint">認知功能嚴重受損</div></div>
-                <span class="excl-check">○</span>
-              </button>
-            </div>
-          </div>
-
-          <hr>
-
-          <!-- ⑤ 到院時間 -->
-          <div class="emt-section">
-            <div class="emt-sec-title">⑤ 預計到院時間</div>
-            <input type="time" id="eETA" style="width:100%;padding:12px;font-size:1.1rem;text-align:center;background:var(--bg4);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text)">
-          </div>
-
-          <!-- 即時評估結論 -->
-          <div id="emtLiveResult" style="margin:14px 0 4px"></div>
-
-          <button class="btn bo btn-lg btn-fw" id="emtSubmitBtn" onclick="submitEMT()" style="font-size:1.2rem;font-weight:900;padding:18px;margin-top:4px;letter-spacing:.05em">
-            🚑 確認送出通報
+        <!-- 主要篩選條件 4欄 -->
+        <div class="emt-grid4">
+          <!-- 年齡 -->
+          <button class="emt-sel-btn" id="ebtn_age_yes" onclick="emtBigSelect('age','yes',this)">
+            <div class="esb-num">① 年齡</div>
+            <div class="esb-lbl">18 – 70 歲</div>
+            <div class="esb-hint">符合年齡範圍</div>
           </button>
-          <div style="font-size:.72rem;color:var(--text3);text-align:center;margin-top:8px">不論符合與否皆會記錄，由 NP 最終評估</div>
+          <!-- 心律 -->
+          <button class="emt-sel-btn" id="ebtn_shock_yes" onclick="emtBigSelect('shock','yes',this)">
+            <div class="esb-num">② 心律</div>
+            <div class="esb-lbl">可電擊</div>
+            <div class="esb-hint">VF / pVT</div>
+          </button>
+          <!-- 目擊倒地 -->
+          <button class="emt-sel-btn" id="ebtn_witnessed_yes" onclick="emtBigSelect('witnessed','yes',this)">
+            <div class="esb-num">③ 目擊</div>
+            <div class="esb-lbl">目擊倒地</div>
+            <div class="esb-hint">有人目擊發生</div>
+          </button>
+          <!-- Bystander CPR -->
+          <button class="emt-sel-btn" id="ebtn_bystander_yes" onclick="emtBigSelect('bystander','yes',this)">
+            <div class="esb-num">④ CPR</div>
+            <div class="esb-lbl">Bystander CPR</div>
+            <div class="esb-hint">旁觀者已施行CPR</div>
+          </button>
+        </div>
+
+        <!-- 排除條件 -->
+        <div style="margin-top:16px">
+          <div style="font-size:.82rem;font-weight:700;color:var(--red);margin-bottom:8px;padding:0 2px">排除條件（有則點選）</div>
+          <div class="emt-excl-row">
+            <button class="emt-excl-btn" id="eexcl_terminal" data-key="excl_terminal" onclick="emtToggleExcl(this)">
+              <span class="excl-check">○</span> 末期病人
+            </button>
+            <button class="emt-excl-btn" id="eexcl_bedridden" data-key="excl_bedridden" onclick="emtToggleExcl(this)">
+              <span class="excl-check">○</span> 長期臥床 &gt; 6 個月
+            </button>
+            <button class="emt-excl-btn" id="eexcl_dementia" data-key="excl_dementia" onclick="emtToggleExcl(this)">
+              <span class="excl-check">○</span> 嚴重失智 / 植物人
+            </button>
+          </div>
+        </div>
+
+        <!-- 即時評估結論 -->
+        <div id="emtLiveResult" style="margin:14px 0 4px"></div>
+
+        <button class="btn bo btn-lg btn-fw" id="emtSubmitBtn" onclick="submitEMT()" style="font-size:1.3rem;font-weight:900;padding:20px;margin-top:8px;letter-spacing:.05em">
+          確認送出通報
+        </button>
+        <div style="font-size:.72rem;color:var(--text3);text-align:center;margin-top:8px">不論符合與否皆會記錄，由 NP 最終評估</div>
         </div>
       </div>
     </div>
@@ -1580,6 +1612,8 @@ async function doLogin() {
   const res = await api('login', { username, password });
 
   if (res.success) {
+    // 記住帳號（不記密碼）
+    localStorage.setItem('ecpr_last_username', username);
     // Script 回傳: {success, username, displayname, role, unit, mvp}
     CU = {
       username: res.username || username,
@@ -1588,6 +1622,11 @@ async function doLogin() {
       unit: res.unit || '',
       mvp: res.mvp || ''
     };
+    // 記住登入狀態 8 小時
+    localStorage.setItem('ecpr_session', JSON.stringify({
+      cu: CU,
+      expiry: Date.now() + 8 * 60 * 60 * 1000
+    }));
     initApp();
   } else {
     toast(res.message || '帳號或密碼錯誤', 'err');
@@ -1790,6 +1829,7 @@ async function switchUser(username, password) {
 }
 
 function doLogout() {
+  localStorage.removeItem('ecpr_session');
   document.getElementById('switchPanel').classList.remove('show');
   location.reload();
 }
@@ -3590,6 +3630,37 @@ async function saveSettings() {
 //  INIT
 // ════════════════════════════════════════
 window.addEventListener('DOMContentLoaded', () => {
+  // 檢查是否有有效的 session（8小時內免登入）
+  const savedSession = localStorage.getItem('ecpr_session');
+  if (savedSession) {
+    try {
+      const s = JSON.parse(savedSession);
+      if (s.expiry > Date.now() && s.cu) {
+        CU = s.cu;
+        // 延長 session
+        localStorage.setItem('ecpr_session', JSON.stringify({
+          cu: CU,
+          expiry: Date.now() + 8 * 60 * 60 * 1000
+        }));
+        initApp();
+      } else {
+        localStorage.removeItem('ecpr_session');
+      }
+    } catch(e) {
+      localStorage.removeItem('ecpr_session');
+    }
+  }
+
+  // 自動填入上次登入的帳號
+  const lastUser = localStorage.getItem('ecpr_last_username');
+  if (lastUser) {
+    const el = document.getElementById('loginUser');
+    if (el) {
+      el.value = lastUser;
+      setTimeout(() => document.getElementById('loginPass')?.focus(), 200);
+    }
+  }
+
   const now = new Date();
   const hm = now.toTimeString().slice(0,5);
   ['eETA','nManualTime'].forEach(id => {
