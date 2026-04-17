@@ -961,6 +961,13 @@
       <!-- 有案件 -->
       <div id="missionCase" class="hidden">
 
+        <!-- NP 警示卡（正式啟動後2分鐘無回應）-->
+        <div id="npAlertCard" class="hidden" style="background:rgba(217,43,43,.15);border:2px solid rgba(217,43,43,.5);border-radius:12px;padding:14px 16px;margin-bottom:12px;cursor:pointer" onclick="showPage('pageTrack',document.querySelector('[data-page=pageTrack]'))">
+          <div style="font-size:.95rem;font-weight:800;color:#FF8080;margin-bottom:4px">⚠️ 部分人員尚未確認收到通知</div>
+          <div id="npAlertNames" style="font-size:.82rem;color:#FFAAAA;margin-bottom:8px"></div>
+          <div style="font-size:.78rem;color:rgba(255,255,255,.6)">點此前往追蹤頁查看並聯絡 →</div>
+        </div>
+
         <!-- 任務狀態指示條 -->
         <div id="missionStatusBar" style="padding:12px 16px;border-radius:var(--radius-sm);margin-bottom:12px;display:flex;align-items:center;gap:10px">
           <span id="missionStatusIcon" style="font-size:1.5rem">⏳</span>
@@ -2799,6 +2806,8 @@ async function specConfirmActivate() {
       if (missionCase) renderMission(missionCase);
       if (specCurrentCase) renderDecisionState(specCurrentCase);
       showActivateModal(msg, cid);
+      // 啟動 NP 警示計時器
+      startNPAlertTimer(theCase);
       setTimeout(() => startMissionPoll(), 3000);
     }, 'red', '⚡ 確認啟動'
   );
@@ -2848,6 +2857,40 @@ function specReassess() {
     specCurrentCase.ecprActivated = false; specCurrentCase.ecprCancelled = false;
     if (typeof renderDecisionState === 'function') renderDecisionState(specCurrentCase);
   }
+}
+
+// NP 警示 — 正式啟動後 2 分鐘檢查未回應職類
+let _npAlertTimer = null;
+
+function startNPAlertTimer(c) {
+  if (_npAlertTimer) clearTimeout(_npAlertTimer);
+  if (CU?.role !== 'np' && CU?.role !== 'dr') return; // 只對 NP/DR 顯示
+  _npAlertTimer = setTimeout(async () => {
+    // 重新 fetch 最新案件資料
+    const res = await api('getCases');
+    if (!res.success) return;
+    const fresh = res.cases.find(x => x.CaseID === c.CaseID);
+    if (!fresh) return;
+    // 取得 accounts cache
+    const accounts = JSON.parse(sessionStorage.getItem('ecpr_users_cache') || '[]');
+    const unconfirmed = [];
+    ['cvs','or','perf'].forEach(r => {
+      const roleUsers = accounts.filter(a => a.role === r);
+      const confirmed = roleUsers.some(u => !!fresh['ack_' + u.username]);
+      if (!confirmed && roleUsers.length > 0) {
+        const roleLabel = ROLES[r]?.label || r;
+        unconfirmed.push({ role: r, label: roleLabel, users: roleUsers });
+      }
+    });
+    if (unconfirmed.length > 0) {
+      const card = document.getElementById('npAlertCard');
+      const names = document.getElementById('npAlertNames');
+      if (card && names) {
+        names.textContent = '未確認：' + unconfirmed.map(u => u.label).join('、');
+        card.classList.remove('hidden');
+      }
+    }
+  }, 2 * 60 * 1000); // 2 分鐘
 }
 
 function showActivateModal(msg, caseId) {
@@ -3218,6 +3261,21 @@ async function npActivate() {
 // ════════════════════════════════════════
 //  SPECIALIST VIEW (DR / CVS / OR / PERF)
 // ════════════════════════════════════════
+function markContacted(caseId, role, btn) {
+  const key = 'ecpr_contacted_' + caseId + '_' + role;
+  localStorage.setItem(key, new Date().toISOString());
+  // 更新按鈕所在的格子
+  const cell = btn.closest('div[style*="border:1px solid"]');
+  if (cell) {
+    cell.style.borderColor = 'rgba(26,158,92,.3)';
+    const statusDiv = btn.parentElement;
+    if (statusDiv) statusDiv.innerHTML = '<span style="color:var(--green-light)">✅ 已聯絡</span>';
+  }
+  // 隱藏 NP 警示卡（如果所有人都已聯絡）
+  buildTrackSummary();
+  toast('已記錄聯絡', 'ok');
+}
+
 function buildTrackSummary() {
   if (!activeCase) return;
   // 從 Sheets 重新 fetch 最新案件資料（含 ack_ 欄位）
@@ -3286,13 +3344,47 @@ function updateTrackSummary(c) {
               doneBy = acct?.displayname || ackUser || '';
             }
           }
-          const bCol = done ? 'rgba(26,158,92,.3)' : 'var(--border)';
-          const tCol = done ? 'var(--green-light)' : 'var(--text3)';
-          const statusTxt = done ? ('✅ ' + (doneBy || '已到位')) : '—';
-          return '<div style="display:flex;align-items:center;gap:8px;padding:7px;background:var(--bg4);border-radius:6px;border:1px solid ' + bCol + '">'
-            + '<span>' + rr.icon + '</span>'
-            + '<span style="font-size:.82rem;flex:1">' + rr.label + '</span>'
-            + '<span style="font-size:.8rem;color:' + tCol + '">' + statusTxt + '</span>'
+          // 檢查是否已聯絡（本機儲存）
+          const contactedKey = 'ecpr_contacted_' + c.CaseID + '_' + r;
+          const contacted = !!localStorage.getItem(contactedKey);
+          const isActivated = caseStatus(c) === 'activated' || c.ecprActivated;
+          // 未到位 + 案件已啟動 + 超過2分鐘 → 警示
+          const activatedTime = c.ecprTime ? new Date(c.ecprTime).getTime() : 0;
+          const isLate = isActivated && activatedTime && (Date.now() - activatedTime > 2 * 60 * 1000);
+          const needAlert = !done && isLate && ['cvs','or','perf'].includes(r);
+
+          let bCol, tCol, statusContent;
+          if (done) {
+            bCol = 'rgba(26,158,92,.3)';
+            tCol = 'var(--green-light)';
+            statusContent = '<span style="color:' + tCol + '">✅ ' + (doneBy || '已到位') + '</span>';
+          } else if (contacted) {
+            bCol = 'rgba(26,158,92,.3)';
+            tCol = 'var(--green-light)';
+            statusContent = '<span style="color:' + tCol + '">✅ 已聯絡</span>';
+          } else if (needAlert) {
+            // 找該職類的 MVP 號碼
+            const accounts = JSON.parse(sessionStorage.getItem('ecpr_users_cache') || '[]');
+            const mvpNums = accounts.filter(a => a.role === r && a.MVP).map(a => a.displayname + ' ' + a.MVP).join('、');
+            bCol = 'rgba(217,43,43,.3)';
+            tCol = '#FF8080';
+            statusContent = '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">'
+              + '<span style="color:' + tCol + ';font-size:.75rem">⚠️ 未確認</span>'
+              + (mvpNums ? '<span style="color:#FFAAAA;font-size:.72rem">📞 ' + mvpNums + '</span>' : '')
+              + '<button onclick="event.stopPropagation();markContacted(this.dataset.c,this.dataset.r,this)" '
+              + 'data-c="' + c.CaseID + '" data-r="' + r + '" '
+              + 'style="background:rgba(26,158,92,.2);border:1px solid rgba(26,158,92,.4);color:var(--green-light);border-radius:4px;padding:2px 8px;font-size:.72rem;cursor:pointer">已聯絡</button>'
+              + '</div>';
+          } else {
+            bCol = 'var(--border)';
+            tCol = 'var(--text3)';
+            statusContent = '<span style="color:' + tCol + '">—</span>';
+          }
+
+          return '<div style="display:flex;align-items:center;gap:8px;padding:9px;background:var(--bg4);border-radius:6px;border:1px solid ' + bCol + '">'
+            + '<span style="font-size:1.1rem">' + rr.icon + '</span>'
+            + '<span style="font-size:.9rem;font-weight:600;flex:1">' + rr.label + '</span>'
+            + statusContent
             + '</div>';
         }).join('')}      </div>
     </div>
