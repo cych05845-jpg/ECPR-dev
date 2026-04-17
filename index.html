@@ -2480,7 +2480,9 @@ function toggleMissionTask(el) {
       setTimeout(() => {
         const mergedMs = {
           team:    ms.team    || missionCase.ms_team    || null,
+          arrival: ms.arrival || missionCase.ms_arrival || null,
           cannula: ms.cannula || missionCase.ms_cannula || null,
+          pumping: ms.pumping || missionCase.ms_pumping || null,
           xray:    ms.xray    || missionCase.ms_xray    || null,
           icu:     ms.icu     || missionCase.ms_icu     || null,
         };
@@ -3493,10 +3495,12 @@ function viewCase(encoded) {
   const milestones = [
     { key:'emt',     icon:'🚑', label:'EMT 通報',        auto: true,  time: c.reportTime },
     { key:'ecpr',    icon:'⚡', label:'ECPR 正式啟動',   auto: true,  time: ecprTime },
-    { key:'team',    icon:'👥', label:'團隊就位',         auto: false, time: ms.team || c.ms_team || null },
+    { key:'team',    icon:'👥', label:'團隊就位',         auto: false, time: ms.team    || c.ms_team    || null },
+    { key:'arrival', icon:'📍', label:'病人抵達',         auto: false, time: ms.arrival || c.ms_arrival || null },
     { key:'cannula', icon:'💉', label:'導管放置完成',     auto: false, time: ms.cannula || c.ms_cannula || null },
-    { key:'xray',    icon:'🩻', label:'X光確認導管位置', auto: false, time: ms.xray || c.ms_xray || null },
-    { key:'icu',     icon:'🏥', label:'轉入 ICU',         auto: false, time: ms.icu || c.ms_icu || null },
+    { key:'pumping', icon:'🫀', label:'Pumping 開始',    auto: false, time: ms.pumping || c.ms_pumping || null },
+    { key:'xray',    icon:'🩻', label:'X光確認導管位置', auto: false, time: ms.xray    || c.ms_xray    || null },
+    { key:'icu',     icon:'🏥', label:'轉入 ICU',         auto: false, time: ms.icu     || c.ms_icu     || null },
   ];
 
   const isActive = ['pending','active','activated'].includes(c.status);
