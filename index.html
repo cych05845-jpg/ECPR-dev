@@ -1926,10 +1926,10 @@ function emtToggleExcl(btn) {
 function emtCalcVerdict() {
   const hasExcl = emtState.excl_terminal || emtState.excl_bedridden || emtState.excl_dementia;
   if (hasExcl) return 'no';
-  if (!emtState.age || !emtState.shock || !emtState.cpr) return null; // 未完成
-  if (emtState.age === 'no' || emtState.shock === 'no' || emtState.cpr === 'no') return 'no';
-  if (emtState.age === 'yes' && emtState.shock === 'yes' && emtState.cpr === 'ideal') return 'yes';
-  return 'borderline';
+  const selected = [emtState.age, emtState.shock, emtState.witnessed, emtState.bystander].filter(v => v === 'yes').length;
+  if (selected === 0) return null;
+  if (selected === 4) return 'yes';  // 全部符合 → 建議立即啟動
+  return null;                        // 未全選 → 不顯示
 }
 
 function emtUpdateResult() {
@@ -1937,15 +1937,33 @@ function emtUpdateResult() {
   const el = document.getElementById('emtLiveResult');
   if (!v) { el.innerHTML = ''; return; }
   const map = {
-    yes: { cls:'lr-go', icon:'🟢', title:'建議啟動 ECPR', sub:'符合初篩條件，送出後 NP 確認啟動' },
-    borderline: { cls:'lr-border', icon:'🟡', title:'由 NP 評估', sub:'部分條件待確認，通報後由 NP 決定' },
-    no: { cls:'lr-no', icon:'🔴', title:'不建議啟動', sub:'不符合初篩，仍會記錄供 NP 參考' }
+    yes: {
+      bg: 'rgba(26,158,92,.2)',
+      border: 'rgba(26,158,92,.6)',
+      color: 'var(--green-light)',
+      title: '建議立即啟動 ECPR',
+      sub: '符合全部初篩條件，送出後 NP 確認啟動'
+    },
+    borderline: {
+      bg: 'rgba(245,166,35,.15)',
+      border: 'rgba(245,166,35,.5)',
+      color: '#FFD060',
+      title: '由 NP 評估',
+      sub: '部分條件符合，通報後由 NP 決定'
+    },
+    no: {
+      bg: 'rgba(217,43,43,.15)',
+      border: 'rgba(217,43,43,.5)',
+      color: '#FF8080',
+      title: '不建議啟動',
+      sub: '不符合初篩，仍會記錄供 NP 參考'
+    }
   };
   const m = map[v];
-  el.innerHTML = `<div class="live-result ${m.cls}">
-    <strong>${m.icon} ${m.title}</strong><br>
-    <span style="font-size:.8rem">${m.sub}</span>
-  </div>`;
+  el.innerHTML = '<div style="background:' + m.bg + ';border:2px solid ' + m.border + ';border-radius:12px;padding:16px 18px;margin:8px 0">'
+    + '<div style="font-size:1.3rem;font-weight:900;color:' + m.color + ';margin-bottom:4px">' + m.title + '</div>'
+    + '<div style="font-size:.85rem;color:' + m.color + ';opacity:.85">' + m.sub + '</div>'
+    + '</div>';
 }
 
 function buildNotifyMsg(caseId, unit, verdict) {
