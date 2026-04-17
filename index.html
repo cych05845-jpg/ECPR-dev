@@ -1630,7 +1630,7 @@ async function doRegister() {
 
   // 用 addAccount action，傳 account 物件
   const res = await api('addAccount', {
-    account: { username, password, role, displayname, unit, MVP: '' }
+    account: { username, password, role, displayname, unit, MVP: '', status: 'pending' }
   });
 
   btn.innerHTML = '送出申請';
@@ -3547,18 +3547,48 @@ async function loadAccounts() {
   if (!res.success || !res.accounts) { wrap.innerHTML = '<div class="empty"><p>無法載入</p></div>'; return; }
 
   const roleLabel = { emt:'EMT', dr:'急診醫師', np:'急診專師', cvs:'CVS醫師', or:'OR', perf:'體循師', nurse:'護理師', admin:'管理者' };
-  wrap.innerHTML = `<div style="overflow-x:auto"><table class="dtable">
-    <thead><tr><th>帳號</th><th>姓名</th><th>職類</th><th>單位</th><th>MVP</th><th></th></tr></thead>
-    <tbody>${res.accounts.map(u => `
-      <tr>
-        <td><span style="font-family:'JetBrains Mono',monospace;font-size:.8rem">${u.username}</span></td>
-        <td>${u.displayname||''}</td>
-        <td><span class="role-tag" style="background:${(ROLES[u.role]||ROLES.nurse).bg};color:${(ROLES[u.role]||ROLES.nurse).color}">${roleLabel[u.role]||u.role}</span></td>
-        <td>${u.unit||''}</td>
-        <td>${u.MVP||''}</td>
-        <td><button class="btn bgh btn-sm" onclick="delAccount('${u.username}')">刪除</button></td>
-      </tr>`).join('')}
-    </tbody></table></div>`;
+  const pending = res.accounts.filter(u => u.status === 'pending');
+  const approved = res.accounts.filter(u => u.status !== 'pending');
+
+  let html = '';
+
+  // 待審核區塊
+  if (pending.length > 0) {
+    html += '<div style="background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.3);border-radius:10px;padding:12px;margin-bottom:14px">';
+    html += '<div style="font-size:.85rem;font-weight:700;color:#FFD060;margin-bottom:8px">⏳ 待審核帳號（' + pending.length + '）</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:8px">';
+    pending.forEach(u => {
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg4);border-radius:8px">';
+      html += '<div style="flex:1"><div style="font-weight:700">' + (u.displayname||'—') + '</div>';
+      html += '<div style="font-size:.75rem;color:var(--text3)">' + u.username + ' · ' + (roleLabel[u.role]||u.role) + ' · ' + (u.unit||'') + '</div></div>';
+      html += '<button class="btn bb btn-sm" style="color:var(--green-light);border-color:rgba(26,158,92,.4);flex-shrink:0" onclick="approveAccount(this.dataset.u)" data-u="' + u.username + '">✅ 核准</button>';
+      html += '<button class="btn bb btn-sm" style="color:var(--red);border-color:rgba(217,43,43,.3);flex-shrink:0" onclick="delAccount(this.dataset.u)" data-u="' + u.username + '">✕ 拒絕</button>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+  }
+
+  // 正式帳號表格
+  html += '<div style="overflow-x:auto"><table class="dtable">';
+  html += '<thead><tr><th>帳號</th><th>姓名</th><th>職類</th><th>單位</th><th>MVP</th><th></th></tr></thead>';
+  html += '<tbody>' + approved.map(u =>
+    '<tr>' +
+    '<td><span style="font-family:monospace;font-size:.8rem">' + u.username + '</span></td>' +
+    '<td>' + (u.displayname||'') + '</td>' +
+    '<td><span class="role-tag" style="background:' + (ROLES[u.role]||ROLES.nurse).bg + ';color:' + (ROLES[u.role]||ROLES.nurse).color + '">' + (roleLabel[u.role]||u.role) + '</span></td>' +
+    '<td>' + (u.unit||'') + '</td>' +
+    '<td>' + (u.MVP||'') + '</td>' +
+    '<td><button class="btn bgh btn-sm" onclick="delAccount(this.dataset.u)" data-u="' + u.username + '">刪除</button></td>' +
+    '</tr>'
+  ).join('') + '</tbody></table></div>';
+
+  wrap.innerHTML = html;
+}
+
+async function approveAccount(username) {
+  const res = await api('updateAccount', { username, updates: { status: 'approved' } });
+  if (res.success) { toast('✅ 已核准：' + username, 'ok'); loadAccounts(); }
+  else toast('核准失敗', 'err');
 }
 
 async function addAccount() {
