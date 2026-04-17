@@ -2276,11 +2276,23 @@ function renderMission(c) {
   // 案件簡介
   document.getElementById('missionCaseId').textContent = '案件 ' + (c.CaseID||'—');
   document.getElementById('missionCaseTime').textContent = c.reportTime ? new Date(c.reportTime).toLocaleString('zh-TW') : '—';
+  var mCondItems = [
+    { label: '18–70歲',      val: c.patientAge === '18-70' },
+    { label: '可電擊',        val: c.shock === 'yes' },
+    { label: '目擊倒地',      val: c.witnessed === '是' },
+    { label: 'Bystander CPR', val: c.bystandarCPR === '是' }
+  ];
   document.getElementById('missionCaseInfo').innerHTML =
-    '<div class="ic"><div class="k">AED心律</div><div class="v">' + (c.shock==='yes'?'⚡ 可電擊':c.shock==='no'?'不可電擊':'—') + '</div></div>' +
-    '<div class="ic"><div class="k">CPR狀況</div><div class="v">' + ({ideal:'最佳',partial:'部分符合',no:'不符合'}[c.cprCondition]||'—') + '</div></div>' +
-    '<div class="ic"><div class="k">初篩結論</div><div class="v" style="color:' + ({yes:'var(--green-light)',borderline:'#FFD060',no:'#FF8080'}[c.ecprVerdict]||'var(--text)') + '">' + ({yes:'🟢 建議啟動',borderline:'🟡 待評估',no:'🔴 不建議'}[c.ecprVerdict]||'—') + '</div></div>' +
-    '<div class="ic"><div class="k">EMT單位</div><div class="v">' + (c.unit||'—') + '</div></div>';
+    '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">' +
+    mCondItems.map(function(ci) {
+      var bg = ci.val ? 'rgba(26,158,92,.2)' : 'rgba(26,158,92,.06)';
+      var border = ci.val ? 'rgba(26,158,92,.6)' : 'rgba(26,158,92,.2)';
+      var textCol = ci.val ? 'var(--green-light)' : 'rgba(26,158,92,.5)';
+      return '<div style="padding:8px 4px;background:' + bg + ';border:1px solid ' + border + ';border-radius:8px;text-align:center">' +
+        '<div style="font-size:.88rem;font-weight:900;color:' + textCol + '">' + ci.label + '</div>' +
+        '</div>';
+    }).join('') +
+    '</div>';
 
   // 狀態條
   const bar = document.getElementById('missionStatusBar');
