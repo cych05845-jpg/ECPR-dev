@@ -2338,6 +2338,18 @@ function renderMission(c) {
 
   // 任務導覽徽章
   updateTaskBadge(c);
+
+  // 如果案件已啟動，NP/DR 自動重啟警示計時器
+  if ((CU?.role === 'np' || CU?.role === 'dr') && c.ecprTime) {
+    const elapsed = Date.now() - new Date(c.ecprTime).getTime();
+    const remaining = 2 * 60 * 1000 - elapsed;
+    if (remaining > 0) {
+      startNPAlertTimerWithDelay(c, remaining);
+    } else {
+      // 已超過2分鐘，立即檢查
+      startNPAlertTimerWithDelay(c, 500);
+    }
+  }
 }
 
 // ── 決策角色狀態 ─────────────────────────
@@ -2857,35 +2869,53 @@ function specReassess() {
 // NP 警示 — 正式啟動後 2 分鐘檢查未回應職類
 let _npAlertTimer = null;
 
+function startNPAlertTimerWithDelay(c, delay) {
+  if (_npAlertTimer) clearTimeout(_npAlertTimer);
+  _npAlertTimer = setTimeout(async () => {
+    await checkUnconfirmedAndAlert(c);
+  }, delay);
+}
+
+async function checkUnconfirmedAndAlert(c) {
+  const res = await api('getCases');
+  if (!res.success) return;
+  const fresh = res.cases.find(x => x.CaseID === c.CaseID);
+  if (!fresh) return;
+  const accounts = JSON.parse(sessionStorage.getItem('ecpr_users_cache') || '[]');
+  const unconfirmed = [];
+  ['cvs','or','perf'].forEach(r => {
+    const roleUsers = accounts.filter(a => a.role === r);
+    const confirmed = roleUsers.some(u => !!fresh['ack_' + u.username]);
+    if (!confirmed && roleUsers.length > 0) {
+      unconfirmed.push({ role: r, label: ROLES[r]?.label || r, users: roleUsers });
+    }
+  });
+  if (unconfirmed.length > 0) {
+    // 畫面警示
+    const card = document.getElementById('npAlertCard');
+    const names = document.getElementById('npAlertNames');
+    if (card && names) {
+      names.textContent = '未確認：' + unconfirmed.map(u => u.label).join('、');
+      card.classList.remove('hidden');
+    }
+    // FCM 推播給 NP（如果本人是 NP/DR）
+    if (CU?.role === 'np' || CU?.role === 'dr') {
+      api('sendFCMToUser', {
+        username: CU.username,
+        title: '⚠️ ECPR 人員未確認',
+        body: '案號：' + c.CaseID + ' | 未確認：' + unconfirmed.map(u => u.label).join('、'),
+        data: { caseId: c.CaseID, type: 'np_alert' }
+      });
+    }
+  }
+}
+
 function startNPAlertTimer(c) {
   if (_npAlertTimer) clearTimeout(_npAlertTimer);
-  if (CU?.role !== 'np' && CU?.role !== 'dr') return; // 只對 NP/DR 顯示
+  if (CU?.role !== 'np' && CU?.role !== 'dr') return;
   _npAlertTimer = setTimeout(async () => {
-    // 重新 fetch 最新案件資料
-    const res = await api('getCases');
-    if (!res.success) return;
-    const fresh = res.cases.find(x => x.CaseID === c.CaseID);
-    if (!fresh) return;
-    // 取得 accounts cache
-    const accounts = JSON.parse(sessionStorage.getItem('ecpr_users_cache') || '[]');
-    const unconfirmed = [];
-    ['cvs','or','perf'].forEach(r => {
-      const roleUsers = accounts.filter(a => a.role === r);
-      const confirmed = roleUsers.some(u => !!fresh['ack_' + u.username]);
-      if (!confirmed && roleUsers.length > 0) {
-        const roleLabel = ROLES[r]?.label || r;
-        unconfirmed.push({ role: r, label: roleLabel, users: roleUsers });
-      }
-    });
-    if (unconfirmed.length > 0) {
-      const card = document.getElementById('npAlertCard');
-      const names = document.getElementById('npAlertNames');
-      if (card && names) {
-        names.textContent = '未確認：' + unconfirmed.map(u => u.label).join('、');
-        card.classList.remove('hidden');
-      }
-    }
-  }, 2 * 60 * 1000); // 2 分鐘
+    await checkUnconfirmedAndAlert(c);
+  }, 2 * 60 * 1000);
 }
 
 function showActivateModal(msg, caseId) {
