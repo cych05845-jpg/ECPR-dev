@@ -1997,13 +1997,13 @@ function emtUpdateResult() {
 function buildNotifyMsg(caseId, unit, verdict) {
   const verdictText = { yes:'✅ 符合初篩條件', borderline:'⚠️ 部分符合，待評估', no:'❌ 不符合初篩' };
   const now = new Date().toLocaleString('zh-TW', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
-  return `【ECMO 團隊預警】
-🏥 來源：${unit || 'EMT 分隊'}
-🚑 現場狀況：${verdictText[verdict] || '—'}
-📋 案件碼：${caseId}
-⏰ 預警時間：${now}
-
-請各團隊留意手機，等待正式啟動通知。`;
+  const verdictClean = { yes:'符合初篩條件', borderline:'部分符合，待評估', no:'不符合初篩' };
+  return '【ECMO 團隊預警】\n' +
+    '來源：' + (unit || 'EMT 分隊') + '\n' +
+    '現場狀況：' + (verdictClean[verdict] || '—') + '\n' +
+    '案件碼：' + caseId + '\n' +
+    '預警時間：' + now + '\n\n' +
+    '請各團隊留意手機，等待正式啟動通知。';
 }
 
 function saveNotify(msg, caseId, verdict) {
@@ -2176,7 +2176,7 @@ async function loadMission() {
     return;
   }
 
-  const DONE = ['closed','icuTransfer'];
+  const DONE = ['closed','icuTransfer','cancelled'];
   const now = Date.now();
   const ONE_DAY = 24 * 60 * 60 * 1000;
 
@@ -2184,6 +2184,7 @@ async function loadMission() {
   const activeCases = res.cases.filter(c => {
     const sv = caseStatus(c);
     if (DONE.includes(sv)) return false;
+    if (sv === 'cancelled') return false;
     if (!c.CaseID) return false;
     if (c.reportTime && (now - new Date(c.reportTime).getTime()) > ONE_DAY) return false;
     return true;
@@ -2778,15 +2779,12 @@ async function specConfirmActivate() {
       const nowFmt = new Date(now).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
       const shock = theCase.shock === 'yes' ? '⚡ 可電擊' : theCase.shock === 'no' ? '不可電擊' : '—';
       const cprCond = {ideal:'最佳條件（<30分+目擊+Bystander）', partial:'有持續CPR', no:'CPR>60分或無CPR'}[theCase.cprCondition] || '—';
-      const msg = `⚠️【ECMO 正式啟動】立即集合！
-🚨【緊急通知：ECMO 正式啟動】請體循環師、手術室護理師立即至急診集合進行裝機。
-🏥 案號：${cid}
-🫀 AED心律：${shock}
-💊 CPR狀況：${cprCond}
-👨‍⚕️ 確認醫師：${CU.displayname}（${ROLES[CU.role]?.label||CU.role}）
-⏰ 啟動時間：${nowFmt}
-
-請至任務頁確認收到。`;
+      const msg = '⚠️【ECMO 正式啟動】立即集合！\n' +
+        '【緊急通知：ECMO 正式啟動】請體循環師、手術室護理師立即至急診集合進行裝機。\n' +
+        '案號：' + cid + '\n' +
+        '確認醫師：' + CU.displayname + '（' + (ROLES[CU.role]?.label||CU.role) + '）\n' +
+        '啟動時間：' + nowFmt + '\n\n' +
+        '請至任務頁確認收到。';
       saveNotify(msg, cid, 'activated');
       if (missionCase) renderMission(missionCase);
       if (specCurrentCase) renderDecisionState(specCurrentCase);
