@@ -327,68 +327,58 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 18px 8px;
-    background: var(--bg3);
-    border: 2px solid var(--border);
-    border-radius: 12px;
+    padding: 24px 12px;
+    background: rgba(26,158,92,.08);
+    border: 2px solid rgba(26,158,92,.35);
+    border-radius: 14px;
     cursor: pointer;
     transition: all .2s;
-    min-height: 110px;
-    gap: 6px;
+    min-height: 130px;
     touch-action: manipulation;
   }
   .emt-sel-btn.selected {
-    background: rgba(26,158,92,.15);
+    background: rgba(26,158,92,.25);
     border-color: var(--green);
-  }
-  .esb-num {
-    font-size: .75rem;
-    color: var(--text3);
-    font-weight: 600;
+    box-shadow: 0 0 0 3px rgba(26,158,92,.3);
   }
   .esb-lbl {
-    font-size: 1.15rem;
+    font-size: 1.5rem;
     font-weight: 900;
     color: var(--text);
     text-align: center;
-    line-height: 1.2;
+    line-height: 1.3;
   }
   .emt-sel-btn.selected .esb-lbl { color: var(--green-light); }
-  .esb-hint {
-    font-size: .72rem;
-    color: var(--text3);
-    text-align: center;
-  }
   /* 排除條件橫向 */
   .emt-excl-row {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     flex-wrap: wrap;
   }
   .emt-excl-btn {
     flex: 1;
-    min-width: 120px;
-    padding: 12px 10px;
-    background: var(--bg3);
-    border: 2px solid rgba(217,43,43,.3);
-    border-radius: 10px;
+    min-width: 130px;
+    padding: 16px 12px;
+    background: rgba(217,43,43,.08);
+    border: 2px solid rgba(217,43,43,.35);
+    border-radius: 12px;
     color: var(--text);
-    font-size: .9rem;
+    font-size: 1.1rem;
     font-weight: 700;
     cursor: pointer;
     transition: all .2s;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     touch-action: manipulation;
   }
   .emt-excl-btn.selected {
-    background: rgba(217,43,43,.15);
+    background: rgba(217,43,43,.2);
     border-color: var(--red);
     color: #FF8080;
+    box-shadow: 0 0 0 3px rgba(217,43,43,.25);
   }
-  .emt-excl-btn .excl-check { font-size: 1.1rem; }
-  .emt-excl-btn.selected .excl-check::before { content: "✕"; }
+  .emt-excl-btn .excl-check { font-size: 1.2rem; }
 
   .emt-big-btn {
     display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -729,37 +719,26 @@
           <div style="font-size:.8rem;color:var(--text3);margin-top:4px">點選符合條件後送出通報</div>
         </div>
 
-        <!-- 主要篩選條件 4欄 -->
+        <!-- 符合條件 -->
+        <div style="font-size:.85rem;font-weight:700;color:var(--green-light);margin-bottom:10px;padding:0 2px">符合條件（點選符合項目）</div>
         <div class="emt-grid4">
-          <!-- 年齡 -->
           <button class="emt-sel-btn" id="ebtn_age_yes" onclick="emtBigSelect('age','yes',this)">
-            <div class="esb-num">① 年齡</div>
             <div class="esb-lbl">18 – 70 歲</div>
-            <div class="esb-hint">符合年齡範圍</div>
           </button>
-          <!-- 心律 -->
           <button class="emt-sel-btn" id="ebtn_shock_yes" onclick="emtBigSelect('shock','yes',this)">
-            <div class="esb-num">② 心律</div>
             <div class="esb-lbl">可電擊</div>
-            <div class="esb-hint">VF / pVT</div>
           </button>
-          <!-- 目擊倒地 -->
           <button class="emt-sel-btn" id="ebtn_witnessed_yes" onclick="emtBigSelect('witnessed','yes',this)">
-            <div class="esb-num">③ 目擊</div>
             <div class="esb-lbl">目擊倒地</div>
-            <div class="esb-hint">有人目擊發生</div>
           </button>
-          <!-- Bystander CPR -->
           <button class="emt-sel-btn" id="ebtn_bystander_yes" onclick="emtBigSelect('bystander','yes',this)">
-            <div class="esb-num">④ CPR</div>
             <div class="esb-lbl">Bystander CPR</div>
-            <div class="esb-hint">旁觀者已施行CPR</div>
           </button>
         </div>
 
         <!-- 排除條件 -->
-        <div style="margin-top:16px">
-          <div style="font-size:.82rem;font-weight:700;color:var(--red);margin-bottom:8px;padding:0 2px">排除條件（有則點選）</div>
+        <div style="margin-top:20px">
+          <div style="font-size:.85rem;font-weight:700;color:var(--red);margin-bottom:10px;padding:0 2px">排除條件（有則點選）</div>
           <div class="emt-excl-row">
             <button class="emt-excl-btn" id="eexcl_terminal" data-key="excl_terminal" onclick="emtToggleExcl(this)">
               <span class="excl-check">○</span> 末期病人
