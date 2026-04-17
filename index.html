@@ -1731,16 +1731,16 @@ function updateUserUI() {
 function buildNav() {
   const items = NAV_CONFIG[CU.role] || NAV_CONFIG.nurse;
   const nav = document.getElementById('botNav');
-  nav.innerHTML = items.map(i =>
-    `<button class="ni" data-page="${i.page}" onclick="showPage('${i.page}',this)">
-      <span class="ni-ico">${i.ico}</span>
-      <span class="ni-lbl">${i.lbl}</span>
-    </button>`
-  ).join('') +
-  `<button class="ni" onclick="toggleSwitchPanel()">
-    <span class="ni-ico">👤</span>
-    <span class="ni-lbl">帳號</span>
-  </button>`;
+  nav.innerHTML = items.map(function(i) {
+    return '<button class="ni" data-page="' + i.page + '" onclick="showPage(\'' + i.page + '\',this)">' +
+      '<span class="ni-ico">' + i.ico + '</span>' +
+      '<span class="ni-lbl">' + i.lbl + '</span>' +
+    '</button>';
+  }).join('') +
+  '<button class="ni" onclick="toggleSwitchPanel()">' +
+    '<span class="ni-ico">👤</span>' +
+    '<span class="ni-lbl">帳號</span>' +
+  '</button>';
 }
 
 function showPage(pageId, navBtn = null) {
