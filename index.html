@@ -2228,15 +2228,15 @@ async function loadMission() {
       const col = sv === 'activated' ? 'var(--red-light)' : '#FFB060';
       const lbl = sv === 'activated' ? '🔴 正式啟動' : '🟠 待決策';
       const dt = c.reportTime ? new Date(c.reportTime).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}) : '';
-      return `<div style="background:var(--bg4);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:12px 14px;margin-top:10px;cursor:pointer" onclick="switchMissionCase('${c.CaseID}')">
-        <div style="font-size:.72rem;color:var(--text3);margin-bottom:4px">⚠️ 另有未完成案件</div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-family:'JetBrains Mono',monospace;font-size:.85rem;color:${col}">${c.CaseID}</span>
-          <span style="font-size:.82rem;color:${col}">${lbl}</span>
-          <span style="font-size:.75rem;color:var(--text3);margin-left:auto">${dt}</span>
-        </div>
-        <div style="font-size:.72rem;color:var(--blue-light);margin-top:4px">點此切換查看 →</div>
-      </div>`;
+      return '<div style="background:var(--bg4);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:12px 14px;margin-top:10px;cursor:pointer" onclick="switchMissionCase(this.dataset.cid)" data-cid="' + c.CaseID + '">' +
+        '<div style="font-size:.72rem;color:var(--text3);margin-bottom:4px">⚠️ 另有未完成案件</div>' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+          '<span style="font-family:monospace;font-size:.85rem;color:' + col + '">' + c.CaseID + '</span>' +
+          '<span style="font-size:.82rem;color:' + col + '">' + lbl + '</span>' +
+          '<span style="font-size:.75rem;color:var(--text3);margin-left:auto">' + dt + '</span>' +
+        '</div>' +
+        '<div style="font-size:.72rem;color:var(--blue-light);margin-top:4px">點此切換查看 →</div>' +
+      '</div>';
     }).join('');
   } else {
     extraEl.innerHTML = '';
@@ -3310,6 +3310,12 @@ function buildRoleStatusCards(c) {
   return cards.join('');
 }
 
+function savePid(caseId, pid) {
+  api('updateCase', { caseId, updates: { patientId: pid } }).then(r => {
+    if (r.success) toast('病歷號已儲存', 'ok');
+  });
+}
+
 function toggleExpand(id) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -3370,9 +3376,17 @@ function updateTrackSummary(c) {
     '<div class="card" style="border-color:rgba(217,43,43,.3);background:rgba(217,43,43,.05)">' +
       '<div class="card-hd">' +
         '<div class="card-ico" style="background:rgba(217,43,43,.15);color:var(--red)">🫀</div>' +
-        '<div><div class="card-title">' + (c.ptName||'未知') + ' — 進行中</div>' +
+        '<div style="flex:1"><div class="card-title">' + (c.ptName||'未知') + ' — 進行中</div>' +
         '<div class="card-sub">' + (c.CaseID||'') + '</div></div>' +
         '<div class="badge b-red" style="margin-left:auto"><span class="dot"></span>進行中</div>' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">' +
+        '<label style="font-size:.78rem;color:var(--text3);white-space:nowrap">病歷號</label>' +
+        '<input id="trackPidInput_' + c.CaseID + '" type="text" placeholder="輸入病歷號" ' +
+          'value="' + (c.patientId||'') + '" ' +
+          'onclick="event.stopPropagation()" ' +
+          'onchange="savePid(this.dataset.cid, this.value)" data-cid="' + c.CaseID + '" ' +
+          'style="flex:1;padding:6px 10px;background:var(--bg4);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:.9rem;font-family:monospace">' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">' + condHtml + '</div>' +
       '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg4);border-radius:8px;margin-bottom:10px">' +
@@ -3615,7 +3629,10 @@ function viewCase(encoded) {
         '<div class="ic"><div class="k">AED心律</div><div class="v">' + (c.shock==='yes'?'⚡ 可電擊':c.shock==='no'?'不可電擊':'—') + '</div></div>' +
         '<div class="ic"><div class="k">CPR狀況</div><div class="v">' + ({ideal:'最佳條件',partial:'部分符合',no:'不符合'}[c.cprCondition]||'—') + '</div></div>' +
         '<div class="ic"><div class="k">初篩結論</div><div class="v" style="color:' + (verdictColor[c.ecprVerdict]||'var(--text)') + '">' + (verdictMap[c.ecprVerdict]||'—') + '</div></div>' +
-        '<div class="ic"><div class="k">狀態</div><div class="v">' + (c.status||'—') + '</div></div>' +
+        '<div class="ic"><div class="k">狀態</div><div class="v" style="color:' + 
+  ({'cancelled':'#FF8080','closed':'var(--green-light)','activated':'var(--red-light)'}[c.status]||'var(--text)') + '">' + 
+  ({'cancelled':'❌ 不啟動','closed':'✅ 完成','activated':'⚡ 已啟動','pending':'⏳ 待確認','active':'🔄 進行中'}[c.status]||c.status||'—') + 
+'</div></div>' +
       '</div>' +
       ((c.excl_terminal||c.excl_bedridden||c.excl_dementia) ? '<div class="alert al-red" style="margin-bottom:0"><span class="alert-icon">🚫</span><div class="alert-body">排除條件：' + [c.excl_terminal?'末期病人':'',c.excl_bedridden?'長期臥床':'',c.excl_dementia?'嚴重失智':''].filter(Boolean).join('、') + '</div></div>' : '') +
     '</div>' +
