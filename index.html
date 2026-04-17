@@ -3335,28 +3335,25 @@ function buildTrackSummary() {
 function updateTrackSummary(c) {
   const wrap = document.getElementById('trackActiveSummary');
   if (!c || ['closed','icuTransfer','cancelled'].includes(caseStatus(c) || c.status)) { wrap.innerHTML = ''; return; }
-  wrap.innerHTML = '
-    <div class="card" style="border-color:rgba(217,43,43,.3);background:rgba(217,43,43,.05)">
-      <div class="card-hd">
-        <div class="card-ico" style="background:rgba(217,43,43,.15);color:var(--red)">🫀</div>
-        <div><div class="card-title">' + (c.ptName||'未知') + ' — 進行中</div><div class="card-sub">' + (c.CaseID||'') + '</div></div>
-        <div class="badge b-red" style="margin-left:auto"><span class="dot"></span>進行中</div>
-      </div>
-      <div class="info-grid">
-        <div class="ic"><div class="k">年齡</div><div class="v">' + (c.patientAge||'—') + '</div></div>
-        <div class="ic"><div class="k">心律</div><div class="v">' + (c.rhythm||'—') + '</div></div>
-        <div class="ic"><div class="k">ECPR</div><div class="v">' + (c.ecprActivated?'✅ 已啟動':'未啟動') + '</div></div>
-        <div class="ic"><div class="k">NP確認</div><div class="v">' + (c.npConfirmed?'✅':'待確認') + '</div></div>
-        <div class="ic"><div class="k">案件計時</div><div class="v" id="trackTimer">—</div></div>
-        <div class="ic"><div class="k">低流量</div><div class="v" id="trackLF">—</div></div>
-      </div>
-      <!-- Role confirmation status -->
-      <hr>
-      <div class="sec-title">各職類到位狀態</div>
-      <div class="g2" id="roleStatusGrid_' + (c.CaseID) + '">
-      </div>
-      </div>
-      \';
+  wrap.innerHTML =
+    '<div class="card" style="border-color:rgba(217,43,43,.3);background:rgba(217,43,43,.05)">' +
+      '<div class="card-hd">' +
+        '<div class="card-ico" style="background:rgba(217,43,43,.15);color:var(--red)">🫀</div>' +
+        '<div><div class="card-title">' + (c.ptName||'未知') + ' — 進行中</div>' +
+        '<div class="card-sub">' + (c.CaseID||'') + '</div></div>' +
+        '<div class="badge b-red" style="margin-left:auto"><span class="dot"></span>進行中</div>' +
+      '</div>' +
+      '<div class="info-grid">' +
+        '<div class="ic"><div class="k">年齡</div><div class="v">' + (c.patientAge||'—') + '</div></div>' +
+        '<div class="ic"><div class="k">心律</div><div class="v">' + (c.rhythm||'—') + '</div></div>' +
+        '<div class="ic"><div class="k">ECPR</div><div class="v">' + (c.ecprActivated?'✅ 已啟動':'未啟動') + '</div></div>' +
+        '<div class="ic"><div class="k">NP確認</div><div class="v">' + (c.npConfirmed?'✅':'待確認') + '</div></div>' +
+        '<div class="ic"><div class="k">案件計時</div><div class="v" id="trackTimer">—</div></div>' +
+      '</div>' +
+      '<hr>' +
+      '<div class="sec-title">各職類到位狀態</div>' +
+      '<div class="g2" id="roleStatusGrid_' + c.CaseID + '"></div>' +
+    '</div>';
 
   // 填入職類到位狀態
   setTimeout(() => {
@@ -3576,54 +3573,49 @@ function viewCase(encoded) {
   // 預先計算複雜的 HTML 片段
   const _activeIndicator = isActive ? '<span style="color:var(--red-light)">● </span>' : '';
   const _activeStyle = isActive ? 'border-color:rgba(217,43,43,.3)' : '';
-  document.getElementById('caseDetailContent').innerHTML = '    <div class="card" style="' + (_activeStyle) + '">
-      <div class="card-hd">
-        <div class="card-ico" style="background:rgba(217,43,43,.15);color:var(--red)">🫀</div>
-        <div>
-          <div class="card-title">' + (_activeIndicator) + '案件 ' + (c.CaseID||'—') + '</div>
-          <div class="card-sub">EMT: ' + (c.emtUser||'—') + ' · ' + (c.reportTime?new Date(c.reportTime).toLocaleString('zh-TW'):'—') + '</div>
-        </div>
-      </div>
-      <div class="info-grid">
-        <div class="ic"><div class="k">AED心律</div><div class="v">' + (c.shock==='yes'?'⚡ 可電擊':c.shock==='no'?'不可電擊':'—') + '</div></div>
-        <div class="ic"><div class="k">CPR狀況</div><div class="v">' + ({ideal:'最佳條件',partial:'部分符合',no:'不符合'}[c.cprCondition]||'—') + '</div></div>
-        <div class="ic"><div class="k">初篩結論</div><div class="v" style="color:' + (verdictColor[c.ecprVerdict]||'var(--text)') + '">' + (verdictMap[c.ecprVerdict]||'—') + '</div></div>
-        <div class="ic"><div class="k">狀態</div><div class="v">' + (c.status||'—') + '</div></div>
-      </div>
-      ' + ((c.excl_terminal||c.excl_bedridden||c.excl_dementia) ? '<div class="alert al-red" style="margin-bottom:0"><span class="alert-icon">🚫</span><div class="alert-body">排除條件：' + [c.excl_terminal?'末期病人':'',c.excl_bedridden?'長期臥床':'',c.excl_dementia?'嚴重失智':''].filter(Boolean).join('、') + '</div></div>' : '') + '
-    </div>
-
-    <!-- 里程碑時間軸 -->
-    <div class="card">
-      <div class="card-hd">
-        <div class="card-ico" style="background:rgba(26,107,181,.15);color:var(--blue-light)">📍</div>
-        <div><div class="card-title">里程碑進度</div></div>
-      </div>
-      <div class="timeline">
-        ' + (milestones.map((m, i) => {
-          // ECPR啟動節點特殊處理：status=activated 就視為完成
-          const isECPRNode = m.key === 'ecpr';
-          const isDone = !!m.time || (isECPRNode && caseStatus(c) === 'activated');
-          const timeStr = m.time ? new Date(m.time).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}) : (isECPRNode && isDone ? '已啟動' : '');
-          const isCurrentActive = isActive && !isDone && (i===0 || !!milestones[i-1].time);
-          return '<div class="tl-item">\n            <div class="tl-left">\n              <div class="tl-dot ' +
-          (isDone?(m.auto?'auto':'done'):isCurrentActive?'active':'') +
-          '">' +
-          (isDone?'✓':m.icon) +
-          '</div>\n              <div class="tl-line ' +
-          (isDone?'done':'') +
-          '"></div>\n            </div>\n            <div class="tl-body">\n              <div class="tl-title">' +
-          (m.label) +
-          ' ' +
-          (m.auto?'<span style="font-size:.65rem;background:rgba(26,107,181,.15);color:#5BA8E8;padding:1px 6px;border-radius:6px;font-weight:700">自動</span>':'') +
-          '</div>\n              <div class="tl-time">' +
-          (isDone ? '✅ ' + timeStr : isCurrentActive?'<span style="color:var(--red-light)">● 等待中</span>':'<span style="color:var(--text3)">— 未完成</span>') +
-          '</div>\n              ' +
-          (!m.auto && isActive && !isDone ? '<button class="tl-action" onclick="markMilestone(this.dataset.c,this.dataset.k,this)" data-c="' + c.CaseID + '" data-k="' + m.key + '">✓ 標記完成</button>' : '') +
-          '\n            </div>\n          </div>';
-        }).join('')) + '
-      </div>
-    </div>';
+  document.getElementById('caseDetailContent').innerHTML =
+    '<div class="card" style="' + _activeStyle + '">' +
+      '<div class="card-hd">' +
+        '<div class="card-ico" style="background:rgba(217,43,43,.15);color:var(--red)">🫀</div>' +
+        '<div>' +
+          '<div class="card-title">' + _activeIndicator + '案件 ' + (c.CaseID||'—') + '</div>' +
+          '<div class="card-sub">EMT: ' + (c.emtUser||'—') + ' · ' + (c.reportTime ? new Date(c.reportTime).toLocaleString('zh-TW') : '—') + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="info-grid">' +
+        '<div class="ic"><div class="k">AED心律</div><div class="v">' + (c.shock==='yes'?'⚡ 可電擊':c.shock==='no'?'不可電擊':'—') + '</div></div>' +
+        '<div class="ic"><div class="k">CPR狀況</div><div class="v">' + ({ideal:'最佳條件',partial:'部分符合',no:'不符合'}[c.cprCondition]||'—') + '</div></div>' +
+        '<div class="ic"><div class="k">初篩結論</div><div class="v" style="color:' + (verdictColor[c.ecprVerdict]||'var(--text)') + '">' + (verdictMap[c.ecprVerdict]||'—') + '</div></div>' +
+        '<div class="ic"><div class="k">狀態</div><div class="v">' + (c.status||'—') + '</div></div>' +
+      '</div>' +
+      ((c.excl_terminal||c.excl_bedridden||c.excl_dementia) ? '<div class="alert al-red" style="margin-bottom:0"><span class="alert-icon">🚫</span><div class="alert-body">排除條件：' + [c.excl_terminal?'末期病人':'',c.excl_bedridden?'長期臥床':'',c.excl_dementia?'嚴重失智':''].filter(Boolean).join('、') + '</div></div>' : '') +
+    '</div>' +
+    '<!-- 里程碑時間軸 -->' +
+    '<div class="card">' +
+      '<div class="card-hd">' +
+        '<div class="card-ico" style="background:rgba(26,107,181,.15);color:var(--blue-light)">📍</div>' +
+        '<div><div class="card-title">里程碑進度</div></div>' +
+      '</div>' +
+      '<div class="timeline">' +
+        milestones.map(function(m, i) {
+          var isECPRNode = m.key === 'ecpr';
+          var isDone = !!m.time || (isECPRNode && caseStatus(c) === 'activated');
+          var timeStr = m.time ? new Date(m.time).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}) : (isECPRNode && isDone ? '已啟動' : '');
+          var isCurrentActive = isActive && !isDone && (i===0 || !!milestones[i-1].time);
+          return '<div class="tl-item">' +
+            '<div class="tl-left">' +
+              '<div class="tl-dot ' + (isDone?(m.auto?'auto':'done'):isCurrentActive?'active':'') + '">' + (isDone?'✓':m.icon) + '</div>' +
+              (i < milestones.length-1 ? '<div class="tl-line ' + (isDone?'done':'') + '"></div>' : '') +
+            '</div>' +
+            '<div class="tl-body">' +
+              '<div class="tl-title">' + m.label + ' ' + (m.auto?'<span style="font-size:.65rem;background:rgba(26,107,181,.15);color:#5BA8E8;padding:1px 6px;border-radius:6px;font-weight:700">自動</span>':'') + '</div>' +
+              '<div class="tl-time">' + (isDone ? '✅ ' + timeStr : isCurrentActive?'<span style="color:var(--red-light)">● 等待中</span>':'<span style="color:var(--text3)">— 未完成</span>') + '</div>' +
+              (!m.auto && isActive && !isDone ? '<button class="tl-action" onclick="markMilestone(this.dataset.c,this.dataset.k,this)" data-c="' + c.CaseID + '" data-k="' + m.key + '">✓ 標記完成</button>' : '') +
+            '</div>' +
+          '</div>';
+        }).join('') +
+      '</div>' +
+    '</div>';
 
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('pageCaseDetail').classList.add('active');
