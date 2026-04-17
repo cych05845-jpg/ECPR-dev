@@ -3254,29 +3254,38 @@ function buildRoleStatusCards(c) {
 
   function makeCard(label, icon, done, doneBy, needAlert, mvpInfo, roleKey) {
     const contacted = !!localStorage.getItem('ecpr_contacted_' + c.CaseID + '_' + roleKey);
-    let bCol, statusHtml;
+    const expandId = 'expand_' + c.CaseID + '_' + roleKey;
+    let bCol, statusHtml, expandHtml = '';
+
     if (done) {
       bCol = 'rgba(26,158,92,.3)';
-      statusHtml = '<span style="color:var(--green-light);font-size:.85rem">✅ ' + (doneBy||'已到位') + '</span>';
+      statusHtml = '<span style="color:var(--green-light);font-size:1rem;font-weight:700">✅ ' + (doneBy||'已到位') + '</span>';
     } else if (contacted) {
       bCol = 'rgba(26,158,92,.3)';
-      statusHtml = '<span style="color:var(--green-light);font-size:.85rem">✅ 已聯絡</span>';
+      statusHtml = '<span style="color:var(--green-light);font-size:1rem;font-weight:700">✅ 已聯絡</span>';
     } else if (needAlert) {
       bCol = 'rgba(217,43,43,.4)';
-      statusHtml = '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">'
-        + '<span style="color:#FF8080;font-size:.8rem">⚠️ 未確認</span>'
-        + (mvpInfo ? '<span style="color:#FFAAAA;font-size:.72rem">📞 ' + mvpInfo + '</span>' : '')
-        + '<button onclick="event.stopPropagation();markContacted(this.dataset.c,this.dataset.r,this)" data-c="' + c.CaseID + '" data-r="' + roleKey + '" '
-        + 'style="background:rgba(26,158,92,.2);border:1px solid rgba(26,158,92,.4);color:var(--green-light);border-radius:4px;padding:2px 8px;font-size:.72rem;cursor:pointer">已聯絡</button>'
-        + '</div>';
+      statusHtml = '<span style="color:#FF8080;font-size:.9rem;font-weight:700;cursor:pointer" onclick="event.stopPropagation();toggleExpand(\'' + expandId + '\')">⚠️ 未確認 ▾</span>';
+      const mvpPhone = mvpInfo ? mvpInfo.match(/[0-9]+/) : null;
+      const phoneNum = mvpPhone ? mvpPhone[0] : '';
+      expandHtml = '<div id="' + expandId + '" style="display:none;margin-top:8px;gap:8px">' +
+        (mvpInfo ? '<a href="tel:' + phoneNum + '" onclick="event.stopPropagation()" ' +
+          'style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;background:rgba(26,107,181,.15);border:1px solid rgba(26,107,181,.4);border-radius:8px;color:#5BA8E8;font-size:.9rem;font-weight:700;text-decoration:none">📞 ' + mvpInfo + '</a>' : '') +
+        '<button onclick="event.stopPropagation();markContacted(this.dataset.c,this.dataset.r,this)" data-c="' + c.CaseID + '" data-r="' + roleKey + '" ' +
+        'style="flex:1;padding:10px;background:rgba(26,158,92,.15);border:1px solid rgba(26,158,92,.4);color:var(--green-light);border-radius:8px;font-size:.9rem;font-weight:700;cursor:pointer">✅ 已聯絡</button>' +
+        '</div>';
     } else {
       bCol = 'var(--border)';
-      statusHtml = '<span style="color:var(--text3);font-size:.85rem">—</span>';
+      statusHtml = '<span style="color:var(--text3);font-size:.9rem">—</span>';
     }
-    return '<div style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg4);border-radius:8px;border:1px solid ' + bCol + '">'
-      + '<span style="font-size:1.1rem">' + icon + '</span>'
-      + '<span style="font-size:.9rem;font-weight:700;flex:1">' + label + '</span>'
-      + statusHtml + '</div>';
+    return '<div style="background:var(--bg4);border-radius:8px;border:1px solid ' + bCol + ';padding:10px">' +
+      '<div style="display:flex;align-items:center;gap:8px">' +
+        '<span style="font-size:1.1rem">' + icon + '</span>' +
+        '<span style="font-size:1rem;font-weight:700;flex:1">' + label + '</span>' +
+        statusHtml +
+      '</div>' +
+      expandHtml +
+    '</div>';
   }
 
   const cards = [];
@@ -3299,6 +3308,12 @@ function buildRoleStatusCards(c) {
   cards.push(makeCard('體循師', (ROLES.perf&&ROLES.perf.icon)||'⚙', perfDone, '', isLate&&!perfDone, perfMvp, 'perf'));
 
   return cards.join('');
+}
+
+function toggleExpand(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'flex' : 'none';
 }
 
 function markContacted(caseId, role, btn) {
@@ -3335,6 +3350,22 @@ function buildTrackSummary() {
 function updateTrackSummary(c) {
   const wrap = document.getElementById('trackActiveSummary');
   if (!c || ['closed','icuTransfer','cancelled'].includes(caseStatus(c) || c.status)) { wrap.innerHTML = ''; return; }
+  // 4個初篩條件
+  var condItems = [
+    { key: 'age',       label: '18–70歲',      val: c.patientAge === '18-70' },
+    { key: 'shock',     label: '可電擊',        val: c.rhythm && c.rhythm.includes('可電擊') },
+    { key: 'witnessed', label: '目擊倒地',      val: c.witnessed === '是' },
+    { key: 'bystander', label: 'Bystander CPR', val: c.bystandarCPR === '是' }
+  ];
+  var condHtml = condItems.map(function(ci) {
+    var col = ci.val ? 'rgba(26,158,92,.25)' : 'rgba(255,255,255,.05)';
+    var border = ci.val ? 'rgba(26,158,92,.5)' : 'var(--border)';
+    var textCol = ci.val ? 'var(--green-light)' : 'var(--text3)';
+    return '<div style="padding:8px 6px;background:' + col + ';border:1px solid ' + border + ';border-radius:8px;text-align:center">' +
+      '<div style="font-size:1rem;font-weight:900;color:' + textCol + '">' + ci.label + '</div>' +
+      '</div>';
+  }).join('');
+
   wrap.innerHTML =
     '<div class="card" style="border-color:rgba(217,43,43,.3);background:rgba(217,43,43,.05)">' +
       '<div class="card-hd">' +
@@ -3343,12 +3374,10 @@ function updateTrackSummary(c) {
         '<div class="card-sub">' + (c.CaseID||'') + '</div></div>' +
         '<div class="badge b-red" style="margin-left:auto"><span class="dot"></span>進行中</div>' +
       '</div>' +
-      '<div class="info-grid">' +
-        '<div class="ic"><div class="k">年齡</div><div class="v">' + (c.patientAge||'—') + '</div></div>' +
-        '<div class="ic"><div class="k">心律</div><div class="v">' + (c.rhythm||'—') + '</div></div>' +
-        '<div class="ic"><div class="k">ECPR</div><div class="v">' + (c.ecprActivated?'✅ 已啟動':'未啟動') + '</div></div>' +
-        '<div class="ic"><div class="k">NP確認</div><div class="v">' + (c.npConfirmed?'✅':'待確認') + '</div></div>' +
-        '<div class="ic"><div class="k">案件計時</div><div class="v" id="trackTimer">—</div></div>' +
+      '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">' + condHtml + '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg4);border-radius:8px;margin-bottom:10px">' +
+        '<span style="font-size:.8rem;color:var(--text3)">案件計時</span>' +
+        '<span style="font-size:1rem;font-weight:700;color:var(--text);margin-left:auto" id="trackTimer">—</span>' +
       '</div>' +
       '<hr>' +
       '<div class="sec-title">各職類到位狀態</div>' +
