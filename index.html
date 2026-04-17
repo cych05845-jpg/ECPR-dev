@@ -1180,6 +1180,7 @@
               <div><div class="card-title">護理師任務清單</div><div class="card-sub">勾選完成即同步里程碑</div></div>
             </div>
             <div style="display:flex;flex-direction:column;gap:8px" id="nurseTaskList">
+              <!-- 1. 團隊就位 -->
               <div class="mission-task" data-task="team" onclick="toggleMissionTask(this)">
                 <div class="mt-check">✓</div>
                 <div class="mt-body">
@@ -1188,26 +1189,52 @@
                 </div>
                 <div class="mt-status">待完成</div>
               </div>
+              <!-- 2. 病人抵達（可點選記錄 + 可修改時間）-->
+              <div class="mission-task" data-task="arrival" onclick="toggleMissionTask(this)">
+                <div class="mt-check">✓</div>
+                <div class="mt-body">
+                  <div class="mt-title">2. 病人抵達</div>
+                  <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+                    <div class="mt-time" id="mt-arrival-time"></div>
+                    <input type="time" id="mt-arrival-edit" onclick="event.stopPropagation()"
+                      onchange="editTaskTime('arrival',this.value)"
+                      style="display:none;padding:3px 6px;background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">
+                  </div>
+                </div>
+                <div class="mt-status">待完成</div>
+              </div>
+              <!-- 3. 導管放置完成 -->
               <div class="mission-task" data-task="cannula" onclick="toggleMissionTask(this)">
                 <div class="mt-check">✓</div>
                 <div class="mt-body">
-                  <div class="mt-title">2. 導管放置完成</div>
+                  <div class="mt-title">3. 導管放置完成</div>
                   <div class="mt-time" id="mt-cannula-time"></div>
                 </div>
                 <div class="mt-status">待完成</div>
               </div>
+              <!-- 4. Pumping 開始 -->
+              <div class="mission-task" data-task="pumping" onclick="toggleMissionTask(this)">
+                <div class="mt-check">✓</div>
+                <div class="mt-body">
+                  <div class="mt-title">4. Pumping 開始</div>
+                  <div class="mt-time" id="mt-pumping-time"></div>
+                </div>
+                <div class="mt-status">待完成</div>
+              </div>
+              <!-- 5. X光確認導管位置 -->
               <div class="mission-task" data-task="xray" onclick="toggleMissionTask(this)">
                 <div class="mt-check">✓</div>
                 <div class="mt-body">
-                  <div class="mt-title">3. X光確認導管位置</div>
+                  <div class="mt-title">5. X光確認導管位置</div>
                   <div class="mt-time" id="mt-xray-time"></div>
                 </div>
                 <div class="mt-status">待完成</div>
               </div>
+              <!-- 6. 轉入 ICU -->
               <div class="mission-task" data-task="icu" onclick="toggleMissionTask(this)">
                 <div class="mt-check">✓</div>
                 <div class="mt-body">
-                  <div class="mt-title">4. 轉入 ICU</div>
+                  <div class="mt-title">6. 轉入 ICU</div>
                   <div class="mt-time" id="mt-icu-time"></div>
                 </div>
                 <div class="mt-status">待完成</div>
@@ -1215,7 +1242,7 @@
             </div>
             <!-- 進度條 -->
             <div class="prog-wrap" style="margin-top:14px"><div class="prog-fill" id="nurseTaskProg" style="width:0%"></div></div>
-            <div class="prog-lbl" id="nurseTaskProgLbl">0 / 4</div>
+            <div class="prog-lbl" id="nurseTaskProgLbl">0 / 6</div>
           </div>
         </div><!-- end missionNurseArea -->
 
@@ -2380,7 +2407,7 @@ function renderMissionRecState(c) {
 function renderMissionNurseState(c) {
   const msKey = 'ecpr_ms_' + c.CaseID;
   const ms = JSON.parse(localStorage.getItem(msKey)||'{}');
-  ['team','cannula','xray','icu'].forEach(task => {
+  ['team','arrival','cannula','pumping','xray','icu'].forEach(task => {
     const el = document.querySelector('[data-task="' + task + '"]');
     if (!el) return;
     const t = ms[task] || c['ms_'+task];
@@ -2390,13 +2417,37 @@ function renderMissionNurseState(c) {
       el.querySelector('.mt-status').textContent = '✅ 完成';
       const timeStr = new Date(t).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
       el.querySelector('.mt-time').textContent = timeStr + (by ? '  ' + by : '');
+      // 病人抵達：顯示修改框
+      if (task === 'arrival') {
+        const editEl = document.getElementById('mt-arrival-edit');
+        if (editEl) { editEl.style.display = 'inline-block'; editEl.value = timeStr; }
+      }
     }
   });
   updateNurseTaskProg();
-  // 案件已完成 → 顯示下載按鈕
   if (['closed','icuTransfer'].includes(caseStatus(c))) {
     showNurseRecordButtons(c.CaseID);
   }
+}
+
+function editTaskTime(task, timeStr) {
+  if (!missionCase) return;
+  const msKey = 'ecpr_ms_' + missionCase.CaseID;
+  const ms = JSON.parse(localStorage.getItem(msKey)||'{}');
+  if (!ms[task]) return;
+  // 把今天日期 + 輸入時間組合成 ISO
+  const today = new Date().toISOString().split('T')[0];
+  const newTime = new Date(today + 'T' + timeStr).toISOString();
+  ms[task] = newTime;
+  localStorage.setItem(msKey, JSON.stringify(ms));
+  // 更新顯示
+  const timeEl = document.getElementById('mt-' + task + '-time');
+  if (timeEl) timeEl.textContent = new Date(newTime).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}) + '  ' + CU.displayname;
+  // 同步到 Sheets
+  const updates = {};
+  updates['ms_' + task] = newTime;
+  api('updateCase', { caseId: missionCase.CaseID, updates });
+  toast('已修改時間', 'ok');
 }
 
 function toggleMissionTask(el) {
@@ -2412,8 +2463,16 @@ function toggleMissionTask(el) {
     el.querySelector('.mt-status').textContent = '✅ 完成';
     const timeStr = new Date(now).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
     el.querySelector('.mt-time').textContent = timeStr + '  ' + CU.displayname;
+    // 病人抵達：顯示時間修改框
+    if (task === 'arrival') {
+      const editEl = document.getElementById('mt-arrival-edit');
+      if (editEl) {
+        editEl.style.display = 'inline-block';
+        editEl.value = timeStr;
+      }
+    }
     api('updateCase', { caseId: missionCase.CaseID, updates: { ['ms_'+task]: now, ['ms_'+task+'_by']: CU.displayname } });
-    toast(`已記錄：${el.querySelector('.mt-title').textContent}`, 'ok');
+    toast('已記錄：' + el.querySelector('.mt-title').textContent, 'ok');
 
     // 勾選 ICU → 產生完整 ECPR 紀錄
     if (task === 'icu') {
@@ -2444,12 +2503,14 @@ function generateECPRRecord(c, ms) {
   lines.push(`案件編號：${c.CaseID || '—'}`);
   lines.push('');
 
-  if (c.reportTime)  lines.push(`${fmt(c.reportTime)}  預警啟動（EMT 通報）`);
-  if (c.ecprTime)    lines.push(`${fmt(c.ecprTime)}  正式啟動：由 ${c.ecprBy || '醫師'} 確認啟動`);
-  else if (caseStatus(c) === 'activated') lines.push(`—  正式啟動（時間未記錄）`);
-  if (ms.team)       lines.push(`${fmt(ms.team)}  團隊就位`);
-  if (ms.cannula)    lines.push(`${fmt(ms.cannula)}  完成導管放置`);
-  if (ms.xray)       lines.push(`${fmt(ms.xray)}  已照完 X 光確認導管位置`);
+  if (c.reportTime)  lines.push(fmt(c.reportTime) + '  預警啟動（EMT 通報）');
+  if (c.ecprTime)    lines.push(fmt(c.ecprTime) + '  正式啟動：由 ' + (c.ecprBy || '醫師') + ' 確認啟動');
+  else if (caseStatus(c) === 'activated') lines.push('—  正式啟動（時間未記錄）');
+  if (ms.team)       lines.push(fmt(ms.team) + '  團隊就位');
+  if (ms.arrival)    lines.push(fmt(ms.arrival) + '  病人抵達');
+  if (ms.cannula)    lines.push(fmt(ms.cannula) + '  完成導管放置');
+  if (ms.pumping)    lines.push(fmt(ms.pumping) + '  Pumping 開始');
+  if (ms.xray)       lines.push(fmt(ms.xray) + '  已照完 X 光確認導管位置');
   if (ms.icu)        lines.push(fmt(ms.icu) + '  轉入 ICU');
   lines.push('');
   // 記錄者：從 ICU 那項的 mt-time 旁的勾選者，或當前登入者
