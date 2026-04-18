@@ -91,6 +91,10 @@
   .page { display:none; padding-bottom:80px; }
   .page.active { display:block; }
   .content { max-width:760px; margin:0 auto; padding:14px; }
+  /* EMT 頁面平板/桌面滿版 */
+  @media (min-width:600px) {
+    #pageEMT .content { max-width:100%; padding:20px; }
+  }
 
   /* CARD */
   .card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:18px; margin-bottom:12px; }
@@ -752,8 +756,8 @@
           </div>
         </div>
 
-        <!-- 即時評估結論 -->
-        <div id="emtLiveResult" style="margin:14px 0 4px"></div>
+        <!-- 即時評估結論 已移除 -->
+        <div id="emtLiveResult" style="display:none"></div>
 
         <button class="btn bo btn-lg btn-fw" id="emtSubmitBtn" onclick="submitEMT()" style="font-size:1.3rem;font-weight:900;padding:20px;margin-top:8px;letter-spacing:.05em">
           確認送出通報
@@ -1482,7 +1486,7 @@ const ROLES = {
 
 // Nav config per role
 const NAV_CONFIG = {
-  emt:   [{ ico:'🚑', lbl:'通報',  page:'pageEMT' },      { ico:'📋', lbl:'追蹤', page:'pageTrack' }, { ico:'🔔', lbl:'通知', page:'pageNotify' }],
+  emt:   [{ ico:'🚑', lbl:'通報',  page:'pageEMT' }],
   dr:    [{ ico:'📋', lbl:'任務',  page:'pageMission' },   { ico:'🗂️', lbl:'追蹤', page:'pageTrack' }, { ico:'🔔', lbl:'通知', page:'pageNotify' }],
   np:    [{ ico:'📋', lbl:'任務',  page:'pageMission' },   { ico:'🗂️', lbl:'追蹤', page:'pageTrack' }, { ico:'🔔', lbl:'通知', page:'pageNotify' }],
   cvs:   [{ ico:'📋', lbl:'任務',  page:'pageMission' },   { ico:'🗂️', lbl:'追蹤', page:'pageTrack' }, { ico:'🔔', lbl:'通知', page:'pageNotify' }],
@@ -2424,6 +2428,18 @@ function renderMissionRecState(c) {
 function renderMissionNurseState(c) {
   const msKey = 'ecpr_ms_' + c.CaseID;
   const ms = JSON.parse(localStorage.getItem(msKey)||'{}');
+  // 先清除所有 DOM 狀態（避免多案件污染）
+  document.querySelectorAll('#nurseTaskList .mission-task').forEach(el => {
+    el.classList.remove('done');
+    const statusEl = el.querySelector('.mt-status');
+    if (statusEl) statusEl.textContent = '待完成';
+    const timeEl = el.querySelector('.mt-time');
+    if (timeEl) timeEl.textContent = '';
+  });
+  // 隱藏病人抵達的時間修改框
+  const arrEdit = document.getElementById('mt-arrival-edit');
+  if (arrEdit) arrEdit.style.display = 'none';
+
   ['team','arrival','cannula','pumping','xray','icu'].forEach(task => {
     const el = document.querySelector('[data-task="' + task + '"]');
     if (!el) return;
@@ -2619,14 +2635,18 @@ function openRecordForCase(caseId) {
 }
 
 function updateNurseTaskProg() {
-  const items = document.querySelectorAll('#nurseTaskList .mission-task');
-  const done = document.querySelectorAll('#nurseTaskList .mission-task.done').length;
-  const total = items.length;
+  if (!missionCase) return;
+  // 用 localStorage 的實際記錄判斷，避免多案件 DOM 污染
+  const keyTasks = ['team','arrival','cannula','pumping','xray','icu'];
+  const msKey = 'ecpr_ms_' + missionCase.CaseID;
+  const ms = JSON.parse(localStorage.getItem(msKey)||'{}');
+  const total = keyTasks.length;
+  const done = keyTasks.filter(t => !!ms[t]).length;
   const pct = total ? Math.round(done/total*100) : 0;
   document.getElementById('nurseTaskProg').style.width = pct+'%';
-  document.getElementById('nurseTaskProgLbl').textContent = `${done} / ${total}`;
+  document.getElementById('nurseTaskProgLbl').textContent = done + ' / ' + total;
 
-  // 全部勾完 → 自動轉已完成
+  // 全部勾完 → 自動轉已完成（確認 CaseID 一致）
   if (done === total && total > 0 && missionCase) {
     const sv = caseStatus(missionCase);
     if (sv === 'activated' || sv === 'active' || sv === 'pending' || sv === '') {
