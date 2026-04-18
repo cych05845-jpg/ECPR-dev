@@ -706,22 +706,15 @@
   <div class="page" id="pageEMT">
     <div class="content">
       <div id="emtSent" class="hidden">
-        <div class="alert al-green"><span class="alert-icon">✅</span>
-          <div class="alert-body">
-            <strong>通報已送出</strong><br>
-            <span class="text-sm" id="emtSentTime"></span><br>
-            案件碼：<strong id="emtSentID" style="font-family:'JetBrains Mono',monospace;color:var(--yellow)"></strong>
-          </div>
-        </div>
-        <div class="card" style="border-color:rgba(232,114,12,.3)">
-          <div class="card-hd">
-            <div class="card-ico" style="background:rgba(232,114,12,.2);color:var(--orange)">📢</div>
-            <div><div class="card-title" style="color:var(--orange)">已發送通知</div><div class="card-sub">ECMO 團隊預警</div></div>
-          </div>
-          <div id="emtNotifyPreview" style="background:rgba(232,114,12,.08);border:1px solid rgba(232,114,12,.3);border-radius:var(--radius-sm);padding:13px;font-size:.9rem;line-height:1.8;color:#FFD080;white-space:pre-wrap;font-family:'JetBrains Mono',monospace"></div>
+        <div style="background:rgba(26,158,92,.15);border:2px solid rgba(26,158,92,.5);border-radius:14px;padding:24px 20px;text-align:center;margin-bottom:16px">
+          <div style="font-size:2.5rem;margin-bottom:10px">✅</div>
+          <div style="font-size:1.4rem;font-weight:900;color:var(--green-light);margin-bottom:6px">通報已送出</div>
+          <div style="font-size:.9rem;color:var(--text3)" id="emtSentTime"></div>
+          <div style="font-size:1rem;font-weight:700;color:var(--yellow);margin-top:8px;font-family:monospace" id="emtSentID"></div>
         </div>
         <div id="emtNpStatus" class="alert al-yellow"><span class="alert-icon">⏳</span><div class="alert-body">等待 NP 確認收到通報...</div></div>
-        <button class="btn bgh btn-fw mt8" onclick="resetEMT()">🔄 新案件</button>
+        <div id="emtNotifyPreview" style="display:none"></div>
+        <button class="btn bgh btn-fw mt8" onclick="resetEMT()" style="font-size:1.1rem;padding:16px">🔄 新案件</button>
       </div>
 
       <div id="emtQuiz">
@@ -769,7 +762,7 @@
         <button class="btn bo btn-lg btn-fw" id="emtSubmitBtn" onclick="submitEMT()" style="font-size:1.3rem;font-weight:900;padding:20px;margin-top:8px;letter-spacing:.05em">
           確認送出通報
         </button>
-        <div style="font-size:.72rem;color:var(--text3);text-align:center;margin-top:8px">不論符合與否皆會記錄，由 NP 最終評估</div>
+
         </div>
       </div>
     </div>
@@ -973,10 +966,11 @@
       <div id="missionCase" class="hidden">
 
         <!-- NP 警示卡（正式啟動後2分鐘無回應）-->
-        <div id="npAlertCard" class="hidden" style="background:rgba(217,43,43,.15);border:2px solid rgba(217,43,43,.5);border-radius:12px;padding:14px 16px;margin-bottom:12px;cursor:pointer" onclick="showPage('pageTrack',document.querySelector('[data-page=pageTrack]'))">
-          <div style="font-size:.95rem;font-weight:800;color:#FF8080;margin-bottom:4px">⚠️ 部分人員尚未確認收到通知</div>
-          <div id="npAlertNames" style="font-size:.82rem;color:#FFAAAA;margin-bottom:8px"></div>
-          <div style="font-size:.78rem;color:rgba(255,255,255,.6)">點此前往追蹤頁查看並聯絡 →</div>
+        <div id="npAlertCard" class="hidden" onclick="showPage('pageTrack',document.querySelector('[data-page=pageTrack]'))"
+          style="background:var(--red);border-radius:12px;padding:16px 18px;margin-bottom:12px;cursor:pointer;animation:msbarPulse 2s infinite;text-align:center">
+          <div style="font-size:1.1rem;font-weight:900;color:#fff;margin-bottom:4px">⚠️ 部分人員尚未確認收到通知</div>
+          <div id="npAlertNames" style="font-size:.9rem;color:rgba(255,255,255,.85);margin-bottom:8px"></div>
+          <div style="font-size:.85rem;color:#fff;font-weight:700;background:rgba(0,0,0,.2);border-radius:6px;padding:6px 12px;display:inline-block">點此前往追蹤頁查看並聯絡 →</div>
         </div>
 
         <!-- 任務狀態指示條 -->
@@ -2942,22 +2936,37 @@ async function checkUnconfirmedAndAlert(c) {
     }
   });
   if (unconfirmed.length > 0) {
-    // 畫面警示
+    // 畫面警示（NP/DR 才顯示）
     const card = document.getElementById('npAlertCard');
     const names = document.getElementById('npAlertNames');
     if (card && names) {
       names.textContent = '未確認：' + unconfirmed.map(u => u.label).join('、');
       card.classList.remove('hidden');
     }
-    // FCM 推播給 NP（如果本人是 NP/DR）
+
+    const unconfirmedLabels = unconfirmed.map(u => u.label).join('、');
+
+    // FCM 推播給 NP（前往追蹤頁）
     if (CU?.role === 'np' || CU?.role === 'dr') {
       api('sendFCMToUser', {
         username: CU.username,
-        title: '⚠️ ECPR 人員未確認，請確認到位',
-        body: '案號：' + c.CaseID + ' | 未確認：' + unconfirmed.map(u => u.label).join('、') + ' | 點此查看追蹤頁',
+        title: '⚠️ ECPR 人員未確認',
+        body: '案號：' + c.CaseID + ' | 未確認：' + unconfirmedLabels + ' | 點此查看追蹤頁',
         data: { caseId: c.CaseID, type: 'np_alert', targetPage: 'pageTrack' }
       });
     }
+
+    // FCM 推播給每個未確認的專師（請他們前往確認）
+    unconfirmed.forEach(function(item) {
+      item.users.forEach(function(u) {
+        api('sendFCMToUser', {
+          username: u.username,
+          title: '⚠️ 請確認收到 ECPR 啟動通知',
+          body: '案號：' + c.CaseID + ' | 兩分鐘內未確認收到，請前往追蹤頁確認到位',
+          data: { caseId: c.CaseID, type: 'spec_reminder', targetPage: 'pageTrack' }
+        });
+      });
+    });
   }
 }
 
