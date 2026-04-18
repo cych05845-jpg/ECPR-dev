@@ -709,8 +709,8 @@
         <div style="background:rgba(26,158,92,.15);border:2px solid rgba(26,158,92,.5);border-radius:14px;padding:24px 20px;text-align:center;margin-bottom:16px">
           <div style="font-size:2.5rem;margin-bottom:10px">✅</div>
           <div style="font-size:1.4rem;font-weight:900;color:var(--green-light);margin-bottom:6px">通報已送出</div>
-          <div style="font-size:.9rem;color:var(--text3)" id="emtSentTime"></div>
-          <div style="font-size:1rem;font-weight:700;color:var(--yellow);margin-top:8px;font-family:monospace" id="emtSentID"></div>
+          <div style="font-size:1rem;font-weight:700;color:var(--yellow);margin-top:4px;font-family:monospace" id="emtSentID"></div>
+          <div style="display:none" id="emtSentTime"></div>
         </div>
         <div id="emtNpStatus" class="alert al-yellow"><span class="alert-icon">⏳</span><div class="alert-body">等待 NP 確認收到通報...</div></div>
         <div id="emtNotifyPreview" style="display:none"></div>
@@ -2946,6 +2946,9 @@ async function checkUnconfirmedAndAlert(c) {
 
     const unconfirmedLabels = unconfirmed.map(u => u.label).join('、');
 
+    // 存入通知記錄
+    saveNotify('【2分鐘提醒】案號：' + c.CaseID + '\n未確認人員：' + unconfirmedLabels + '\n請前往追蹤頁確認各職類到位', c.CaseID, 'np_alert');
+
     // FCM 推播給 NP（前往追蹤頁）
     if (CU?.role === 'np' || CU?.role === 'dr') {
       api('sendFCMToUser', {
@@ -3432,9 +3435,27 @@ function markContacted(caseId, role, btn) {
     const statusDiv = btn.parentElement;
     if (statusDiv) statusDiv.innerHTML = '<span style="color:var(--green-light)">✅ 已聯絡</span>';
   }
-  // 隱藏 NP 警示卡（如果所有人都已聯絡）
   buildTrackSummary();
   toast('已記錄聯絡', 'ok');
+
+  // 檢查是否所有未確認的都已聯絡，若是則隱藏 NP 警示卡
+  checkAndHideNPAlert(caseId);
+}
+
+function checkAndHideNPAlert(caseId) {
+  // 檢查追蹤頁的 roleStatusGrid 裡是否還有紅色未確認
+  const grid = document.getElementById('roleStatusGrid_' + caseId);
+  if (!grid) {
+    // 任務頁的警示卡也檢查
+    const card = document.getElementById('npAlertCard');
+    if (card) card.classList.add('hidden');
+    return;
+  }
+  const hasRed = grid.querySelector('[style*="rgba(217,43,43,.4)"]');
+  if (!hasRed) {
+    const card = document.getElementById('npAlertCard');
+    if (card) card.classList.add('hidden');
+  }
 }
 
 function buildTrackSummary() {
