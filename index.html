@@ -346,13 +346,20 @@
     box-shadow: 0 0 0 3px rgba(26,158,92,.3);
   }
   .esb-lbl {
-    font-size: 1.5rem;
+    font-size: 1.6rem;
     font-weight: 900;
     color: var(--text);
     text-align: center;
     line-height: 1.3;
   }
   .emt-sel-btn.selected .esb-lbl { color: var(--green-light); }
+  /* 平板滿版時字體更大 */
+  @media (min-width:600px) {
+    .esb-lbl { font-size: 2rem; }
+    .emt-sel-btn { min-height: 160px; }
+    .emt-excl-btn { font-size: 1.3rem; padding: 18px 14px; }
+    #pageEMT .btn.bo { font-size: 1.5rem; padding: 24px; }
+  }
   /* 排除條件橫向 */
   .emt-excl-row {
     display: flex;
@@ -719,12 +726,12 @@
 
       <div id="emtQuiz">
         <div style="padding:12px 0 8px;text-align:center">
-          <div style="font-size:1.3rem;font-weight:900;letter-spacing:.05em;color:var(--orange)">ECPR 院前初篩</div>
+          <div style="font-size:1.5rem;font-weight:900;letter-spacing:.05em;color:var(--orange)">ECPR 院前初篩</div>
           <div style="font-size:.8rem;color:var(--text3);margin-top:4px">點選符合條件後送出通報</div>
         </div>
 
         <!-- 符合條件 -->
-        <div style="font-size:.85rem;font-weight:700;color:var(--green-light);margin-bottom:10px;padding:0 2px">符合條件（點選符合項目）</div>
+        <div style="font-size:1rem;font-weight:700;color:var(--green-light);margin-bottom:10px;padding:0 2px">符合條件（點選符合項目）</div>
         <div class="emt-grid4">
           <button class="emt-sel-btn" id="ebtn_age_yes" onclick="emtBigSelect('age','yes',this)">
             <div class="esb-lbl">18 – 70 歲</div>
@@ -742,7 +749,7 @@
 
         <!-- 排除條件 -->
         <div style="margin-top:20px">
-          <div style="font-size:.85rem;font-weight:700;color:var(--red);margin-bottom:10px;padding:0 2px">排除條件（有則點選）</div>
+          <div style="font-size:1rem;font-weight:700;color:var(--red);margin-bottom:10px;padding:0 2px">排除條件（有則點選）</div>
           <div class="emt-excl-row">
             <button class="emt-excl-btn" id="eexcl_terminal" data-key="excl_terminal" onclick="emtToggleExcl(this)">
               <span class="excl-check">○</span> 末期病人
@@ -2286,17 +2293,15 @@ function renderMission(c) {
     { label: '目擊倒地',      val: c.witnessed === '是' },
     { label: 'Bystander CPR', val: c.bystandarCPR === '是' }
   ];
+  // 一行文字顯示符合條件
+  var condText = mCondItems.map(function(ci) {
+    return ci.val
+      ? '<span style="color:#fff;font-weight:700">' + ci.label + '</span>'
+      : '<span style="color:rgba(255,255,255,.3)">' + ci.label + '</span>';
+  }).join('<span style="color:rgba(255,255,255,.25);margin:0 4px">·</span>');
   document.getElementById('missionCaseInfo').innerHTML =
-    '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;width:100%;margin:8px 0">' +
-    mCondItems.map(function(ci) {
-      var bg = ci.val ? 'rgba(26,158,92,.2)' : 'rgba(26,158,92,.06)';
-      var border = ci.val ? 'rgba(26,158,92,.6)' : 'rgba(26,158,92,.2)';
-      var textCol = ci.val ? 'var(--green-light)' : 'rgba(26,158,92,.5)';
-      return '<div style="padding:12px 2px;background:' + bg + ';border:1px solid ' + border + ';border-radius:8px;text-align:center;display:flex;align-items:center;justify-content:center">' +
-        '<div style="font-size:.85rem;font-weight:900;color:' + textCol + ';line-height:1.2">' + ci.label + '</div>' +
-        '</div>';
-    }).join('') +
-    '</div>';
+    '<div style="padding:8px 10px;background:rgba(26,158,92,.08);border:1px solid rgba(26,158,92,.2);border-radius:8px;font-size:.9rem;line-height:1.6">' +
+    condText + '</div>';
 
   // 狀態條
   const bar = document.getElementById('missionStatusBar');
@@ -2922,9 +2927,9 @@ async function checkUnconfirmedAndAlert(c) {
     if (CU?.role === 'np' || CU?.role === 'dr') {
       api('sendFCMToUser', {
         username: CU.username,
-        title: '⚠️ ECPR 人員未確認',
-        body: '案號：' + c.CaseID + ' | 未確認：' + unconfirmed.map(u => u.label).join('、'),
-        data: { caseId: c.CaseID, type: 'np_alert' }
+        title: '⚠️ ECPR 人員未確認，請確認到位',
+        body: '案號：' + c.CaseID + ' | 未確認：' + unconfirmed.map(u => u.label).join('、') + ' | 點此查看追蹤頁',
+        data: { caseId: c.CaseID, type: 'np_alert', targetPage: 'pageTrack' }
       });
     }
   }
