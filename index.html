@@ -3466,18 +3466,27 @@ function markContacted(caseId, role, btn) {
 }
 
 function checkAndHideNPAlert(caseId) {
-  // 檢查追蹤頁的 roleStatusGrid 裡是否還有紅色未確認
-  const grid = document.getElementById('roleStatusGrid_' + caseId);
-  if (!grid) {
-    // 任務頁的警示卡也檢查
-    const card = document.getElementById('npAlertCard');
-    if (card) card.classList.add('hidden');
-    return;
-  }
-  const hasRed = grid.querySelector('[style*="rgba(217,43,43,.4)"]');
-  if (!hasRed) {
-    const card = document.getElementById('npAlertCard');
-    if (card) card.classList.add('hidden');
+  const card = document.getElementById('npAlertCard');
+  const names = document.getElementById('npAlertNames');
+  if (!card) return;
+
+  // 檢查是否所有職類都已確認或已聯絡
+  const roles = ['cvs','or','perf'];
+  const allDone = roles.every(function(r) {
+    return !!localStorage.getItem('ecpr_contacted_' + caseId + '_' + r);
+  });
+
+  if (allDone) {
+    // 全數確認 → 改成綠色顯示
+    card.style.background = 'var(--green)';
+    card.style.animation = 'none';
+    card.style.cursor = 'default';
+    card.onclick = null;
+    if (names) names.textContent = '';
+    const titleEl = card.querySelector('div[style*="font-size:1.1rem"]');
+    if (titleEl) titleEl.textContent = '✅ 全數人員收到通知';
+    const hintEl = card.querySelector('div[style*="inline-block"]');
+    if (hintEl) hintEl.style.display = 'none';
   }
 }
 
