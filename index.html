@@ -1197,11 +1197,16 @@
                 <div class="mt-check">✓</div>
                 <div class="mt-body">
                   <div class="mt-title">1. 團隊就位</div>
-                  <div class="mt-time" id="mt-team-time"></div>
+                  <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+                    <div class="mt-time" id="mt-team-time"></div>
+                    <input type="time" id="mt-team-edit" onclick="event.stopPropagation()"
+                      onchange="editTaskTime('team',this.value)"
+                      style="display:none;padding:3px 6px;background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">
+                  </div>
                 </div>
                 <div class="mt-status">待完成</div>
               </div>
-              <!-- 2. 病人抵達（可點選記錄 + 可修改時間）-->
+              <!-- 2. 病人抵達 -->
               <div class="mission-task" data-task="arrival" onclick="toggleMissionTask(this)">
                 <div class="mt-check">✓</div>
                 <div class="mt-body">
@@ -1220,7 +1225,12 @@
                 <div class="mt-check">✓</div>
                 <div class="mt-body">
                   <div class="mt-title">3. 導管放置完成</div>
-                  <div class="mt-time" id="mt-cannula-time"></div>
+                  <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+                    <div class="mt-time" id="mt-cannula-time"></div>
+                    <input type="time" id="mt-cannula-edit" onclick="event.stopPropagation()"
+                      onchange="editTaskTime('cannula',this.value)"
+                      style="display:none;padding:3px 6px;background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">
+                  </div>
                 </div>
                 <div class="mt-status">待完成</div>
               </div>
@@ -1229,7 +1239,12 @@
                 <div class="mt-check">✓</div>
                 <div class="mt-body">
                   <div class="mt-title">4. Pumping 開始</div>
-                  <div class="mt-time" id="mt-pumping-time"></div>
+                  <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+                    <div class="mt-time" id="mt-pumping-time"></div>
+                    <input type="time" id="mt-pumping-edit" onclick="event.stopPropagation()"
+                      onchange="editTaskTime('pumping',this.value)"
+                      style="display:none;padding:3px 6px;background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">
+                  </div>
                 </div>
                 <div class="mt-status">待完成</div>
               </div>
@@ -1238,7 +1253,12 @@
                 <div class="mt-check">✓</div>
                 <div class="mt-body">
                   <div class="mt-title">5. X光確認導管位置</div>
-                  <div class="mt-time" id="mt-xray-time"></div>
+                  <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+                    <div class="mt-time" id="mt-xray-time"></div>
+                    <input type="time" id="mt-xray-edit" onclick="event.stopPropagation()"
+                      onchange="editTaskTime('xray',this.value)"
+                      style="display:none;padding:3px 6px;background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">
+                  </div>
                 </div>
                 <div class="mt-status">待完成</div>
               </div>
@@ -1247,7 +1267,12 @@
                 <div class="mt-check">✓</div>
                 <div class="mt-body">
                   <div class="mt-title">6. 轉入 ICU</div>
-                  <div class="mt-time" id="mt-icu-time"></div>
+                  <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+                    <div class="mt-time" id="mt-icu-time"></div>
+                    <input type="time" id="mt-icu-edit" onclick="event.stopPropagation()"
+                      onchange="editTaskTime('icu',this.value)"
+                      style="display:none;padding:3px 6px;background:var(--bg4);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.78rem">
+                  </div>
                 </div>
                 <div class="mt-status">待完成</div>
               </div>
@@ -2461,9 +2486,11 @@ function renderMissionNurseState(c) {
     const timeEl = el.querySelector('.mt-time');
     if (timeEl) timeEl.textContent = '';
   });
-  // 隱藏病人抵達的時間修改框
-  const arrEdit = document.getElementById('mt-arrival-edit');
-  if (arrEdit) arrEdit.style.display = 'none';
+  // 隱藏所有時間修改框
+  ['team','arrival','cannula','pumping','xray','icu'].forEach(function(t) {
+    const editEl = document.getElementById('mt-' + t + '-edit');
+    if (editEl) editEl.style.display = 'none';
+  });
 
   ['team','arrival','cannula','pumping','xray','icu'].forEach(task => {
     const el = document.querySelector('[data-task="' + task + '"]');
@@ -2475,11 +2502,9 @@ function renderMissionNurseState(c) {
       el.querySelector('.mt-status').textContent = '✅ 完成';
       const timeStr = new Date(t).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
       el.querySelector('.mt-time').textContent = timeStr + (by ? '  ' + by : '');
-      // 病人抵達：顯示修改框
-      if (task === 'arrival') {
-        const editEl = document.getElementById('mt-arrival-edit');
-        if (editEl) { editEl.style.display = 'inline-block'; editEl.value = timeStr; }
-      }
+      // 顯示時間修改框
+      const editEl = document.getElementById('mt-' + task + '-edit');
+      if (editEl) { editEl.style.display = 'inline-block'; editEl.value = timeStr; }
     }
   });
   updateNurseTaskProg();
@@ -2521,13 +2546,11 @@ function toggleMissionTask(el) {
     el.querySelector('.mt-status').textContent = '✅ 完成';
     const timeStr = new Date(now).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
     el.querySelector('.mt-time').textContent = timeStr + '  ' + CU.displayname;
-    // 病人抵達：顯示時間修改框
-    if (task === 'arrival') {
-      const editEl = document.getElementById('mt-arrival-edit');
-      if (editEl) {
-        editEl.style.display = 'inline-block';
-        editEl.value = timeStr;
-      }
+    // 勾選後顯示時間修改框（所有任務）
+    const editEl = document.getElementById('mt-' + task + '-edit');
+    if (editEl) {
+      editEl.style.display = 'inline-block';
+      editEl.value = timeStr;
     }
     api('updateCase', { caseId: missionCase.CaseID, updates: { ['ms_'+task]: now, ['ms_'+task+'_by']: CU.displayname } });
     toast('已記錄：' + el.querySelector('.mt-title').textContent, 'ok');
@@ -3777,7 +3800,7 @@ function viewCase(encoded) {
             '<div class="tl-body">' +
               '<div class="tl-title">' + m.label + ' ' + (m.auto?'<span style="font-size:.65rem;background:rgba(26,107,181,.15);color:#5BA8E8;padding:1px 6px;border-radius:6px;font-weight:700">自動</span>':'') + '</div>' +
               '<div class="tl-time">' + (isDone ? '✅ ' + timeStr : isCurrentActive?'<span style="color:var(--red-light)">● 等待中</span>':'<span style="color:var(--text3)">— 未完成</span>') + '</div>' +
-              (!m.auto && isActive && !isDone ? '<button class="tl-action" onclick="markMilestone(this.dataset.c,this.dataset.k,this)" data-c="' + c.CaseID + '" data-k="' + m.key + '">✓ 標記完成</button>' : '') +
+              '' +  // 追蹤頁里程碑只顯示，不可操作（請在護理師任務頁勾選）
             '</div>' +
           '</div>';
         }).join('') +
