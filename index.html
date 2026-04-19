@@ -3449,19 +3449,36 @@ function toggleExpand(id) {
 }
 
 function markContacted(caseId, role, btn) {
+  const timeStr = new Date().toLocaleTimeString('zh-TW', {hour:'2-digit', minute:'2-digit'});
+  const isoStr = new Date().toISOString();
   const key = 'ecpr_contacted_' + caseId + '_' + role;
-  localStorage.setItem(key, new Date().toISOString());
+  localStorage.setItem(key, isoStr);
+
+  // 找該 role 的所有 username，寫入 ack（等同於本人確認）
+  const accounts = JSON.parse(sessionStorage.getItem('ecpr_users_cache') || '[]');
+  const roleUsers = accounts.filter(function(a) { return a.role === role; });
+  const updates = {};
+  roleUsers.forEach(function(u) {
+    updates['ack_' + u.username] = timeStr + '（NP代確認）';
+    localStorage.setItem('ecpr_ack_' + caseId + '_' + u.username, timeStr + '（NP代確認）');
+  });
+  if (Object.keys(updates).length > 0) {
+    api('updateCase', { caseId: caseId, updates: updates });
+  }
+
   // 更新按鈕所在的格子
   const cell = btn.closest('div[style*="border:1px solid"]');
   if (cell) {
     cell.style.borderColor = 'rgba(26,158,92,.3)';
-    const statusDiv = btn.parentElement;
-    if (statusDiv) statusDiv.innerHTML = '<span style="color:var(--green-light)">✅ 已聯絡</span>';
+    cell.style.background = 'var(--bg4)';
+    const expandDiv = cell.querySelector('div[id^="expand_"]');
+    if (expandDiv) expandDiv.style.display = 'none';
+    const statusSpan = cell.querySelector('span[style*="FF8080"]');
+    if (statusSpan) statusSpan.outerHTML = '<span style="color:var(--green-light);font-size:1rem;font-weight:700">✅ 已聯絡</span>';
   }
-  buildTrackSummary();
-  toast('已記錄聯絡', 'ok');
 
-  // 檢查是否所有未確認的都已聯絡，若是則隱藏 NP 警示卡
+  buildTrackSummary();
+  toast('✅ 已記錄聯絡，視同確認到位', 'ok');
   checkAndHideNPAlert(caseId);
 }
 
@@ -3470,10 +3487,17 @@ function checkAndHideNPAlert(caseId) {
   const names = document.getElementById('npAlertNames');
   if (!card) return;
 
-  // 檢查是否所有職類都已確認或已聯絡
+  // 檢查是否所有職類都已確認（ack）或已聯絡（contacted）
+  const accounts2 = JSON.parse(sessionStorage.getItem('ecpr_users_cache') || '[]');
   const roles = ['cvs','or','perf'];
   const allDone = roles.every(function(r) {
-    return !!localStorage.getItem('ecpr_contacted_' + caseId + '_' + r);
+    // 已聯絡
+    if (localStorage.getItem('ecpr_contacted_' + caseId + '_' + r)) return true;
+    // 該 role 有人按下確認
+    const roleUsers = accounts2.filter(function(a) { return a.role === r; });
+    return roleUsers.some(function(u) {
+      return !!localStorage.getItem('ecpr_ack_' + caseId + '_' + u.username);
+    });
   });
 
   if (allDone) {
