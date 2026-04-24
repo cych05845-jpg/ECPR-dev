@@ -1556,10 +1556,22 @@ let prevPage = null;
 // ════════════════════════════════════════
 async function api(action, data = {}) {
   try {
-    // GET + payload 方式，完全避開 CORS preflight 問題
-    const payload = encodeURIComponent(JSON.stringify({ action, ...data }));
-    const r = await fetch(`${API}?payload=${payload}`);
-    return await r.json();
+    const body = JSON.stringify({ action, ...data });
+    // 小資料用 GET（避開 CORS preflight、速度快）
+    // 大資料（> ~1500 字元會讓 URL 超長）改用 POST
+    // Content-Type 用 text/plain 才不會觸發 preflight（Apps Script doPost 會自己 JSON.parse e.postData.contents）
+    if (body.length <= 1500) {
+      const payload = encodeURIComponent(body);
+      const r = await fetch(`${API}?payload=${payload}`);
+      return await r.json();
+    } else {
+      const r = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: body
+      });
+      return await r.json();
+    }
   } catch(e) {
     return { success: false, message: e.message };
   }
@@ -1755,6 +1767,11 @@ function initApp() {
       if (r.success && r.accounts) sessionStorage.setItem('ecpr_users_cache', JSON.stringify(r.accounts));
     });
   }
+  // 預載今日值班清單供 MVP 電話顯示過濾
+  const today_ = new Date().toISOString().slice(0,10);
+  api('getSchedule', { date: today_ }).then(r => {
+    if (r.success && r.schedule) sessionStorage.setItem('ecpr_onduty_cache', JSON.stringify(r.schedule));
+  });
   // 初始化 FCM 推播
   setTimeout(initFCM, 1000);
   // 顯示 FCM 測試按鈕
@@ -3443,19 +3460,37 @@ function buildRoleStatusCards(c) {
   }
 
   const cards = [];
+  // 取今日值班快取（用於過濾 MVP 電話顯示對象）
+  const onDutyList = JSON.parse(sessionStorage.getItem('ecpr_onduty_cache') || '[]');
+  const onDutyByRole = {};
+  onDutyList.forEach(function(s) {
+    if (!s.role || !s.username) return;
+    if (!onDutyByRole[s.role]) onDutyByRole[s.role] = [];
+    onDutyByRole[s.role].push(String(s.username).trim());
+  });
+  const onDutyCacheReady = onDutyList.length > 0;
+
   // 決策醫師（NP/DR 合併）
   cards.push(makeCard('決策醫師', '⚡', !!(c.ecprBy), c.ecprBy, false, '', 'decision'));
-  // CVS
+  // CVS：只顯示今日值班的 MVP（推播規則=今日值班 CVS，故聯絡對象也只顯示值班者）
+  // 若快取尚未載入，退回顯示全體 CVS 作為保險（避免因載入時差造成空白）
   const cvsUsers = accounts.filter(function(a) { return a.role === 'cvs'; });
   const cvsDone = cvsUsers.some(function(u) { return !!c['ack_'+u.username]; });
-  const cvsMvp = cvsUsers.filter(function(a) { return a.MVP; }).map(function(a) { return a.displayname+' '+a.MVP; }).join('、');
+  const cvsOnDuty = new Set(onDutyByRole['cvs'] || []);
+  const cvsMvp = cvsUsers
+    .filter(function(a) { return a.MVP && (!onDutyCacheReady || cvsOnDuty.has(String(a.username).trim())); })
+    .map(function(a) { return a.displayname+' '+a.MVP; })
+    .join('、');
   cards.push(makeCard('CVS醫師', (ROLES.cvs&&ROLES.cvs.icon)||'□', cvsDone, '', isLate&&!cvsDone, cvsMvp, 'cvs'));
-  // OR
+  // OR：只顯示 OR001（leader 公用手機，推播規則=OR001）
   const orUsers = accounts.filter(function(a) { return a.role === 'or'; });
   const orDone = orUsers.some(function(u) { return !!c['ack_'+u.username]; });
-  const orMvp = orUsers.filter(function(a) { return a.MVP; }).map(function(a) { return a.displayname+' '+a.MVP; }).join('、');
+  const orMvp = orUsers
+    .filter(function(a) { return a.MVP && String(a.username).trim().toUpperCase() === 'OR001'; })
+    .map(function(a) { return a.displayname+' '+a.MVP; })
+    .join('、');
   cards.push(makeCard('OR', (ROLES.or&&ROLES.or.icon)||'□', orDone, '', isLate&&!orDone, orMvp, 'or'));
-  // 體循
+  // 體循：保持現狀全體顯示（推播規則=全體廣播，聯絡任一位皆可）
   const perfUsers = accounts.filter(function(a) { return a.role === 'perf'; });
   const perfDone = perfUsers.some(function(u) { return !!c['ack_'+u.username]; });
   const perfMvp = perfUsers.filter(function(a) { return a.MVP; }).map(function(a) { return a.displayname+' '+a.MVP; }).join('、');
