@@ -580,6 +580,8 @@
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js"></script>
+  <!-- SheetJS (for CVS 班表 Excel 匯入) -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -1358,13 +1360,28 @@
           <div class="card-hd"><div class="card-ico" style="background:rgba(245,166,35,.15);color:var(--yellow)">🗓️</div><div><div class="card-title">今日值班</div></div><button class="btn bgh btn-sm" style="margin-left:auto" onclick="loadSchedule()">🔄</button></div>
           <div id="schedList"><div class="text-muted text-sm" style="padding:16px;text-align:center">載入中...</div></div>
         </div>
+
+        <!-- CVS 班表匯入 -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ico" style="background:rgba(124,58,237,.15);color:#A78BFA">📥</div>
+            <div><div class="card-title">匯入 CVS 班表</div><div class="text-muted text-sm">上傳 CVS 提供的 Excel 值班登記表</div></div>
+          </div>
+          <div class="f" style="margin-bottom:12px">
+            <label>選擇 Excel 檔案（.xlsx）</label>
+            <input type="file" id="cvsFile" accept=".xlsx,.xls" onchange="parseCvsExcel()">
+          </div>
+          <div id="cvsImportStatus" class="text-muted text-sm" style="padding:8px 0">尚未選擇檔案</div>
+          <div id="cvsImportPreview"></div>
+        </div>
+
         <div class="card">
           <div class="card-hd"><div class="card-ico" style="background:rgba(245,166,35,.15);color:var(--yellow)">➕</div><div><div class="card-title">新增排班</div></div></div>
           <div class="g2">
             <div class="f"><label>日期</label><input type="date" id="sDate"></div>
-            <div class="f"><label>班別</label><select id="sShift"><option value="day">白班 07-15</option><option value="evening">小夜 15-23</option><option value="night">大夜 23-07</option></select></div>
+            <div class="f"><label>班別</label><select id="sShift"><option value="day">白班 07-15</option><option value="evening">小夜 15-23</option><option value="night">大夜 23-07</option><option value="oncall">全天 on call</option></select></div>
             <div class="f"><label>員工編號</label><input type="text" id="sUser" placeholder="帳號"></div>
-            <div class="f"><label>職類</label><select id="sRole"><option value="nurse">護理師</option><option value="np">急診專師</option><option value="dr">急診醫師</option><option value="emt">EMT</option></select></div>
+            <div class="f"><label>職類</label><select id="sRole"><option value="nurse">護理師</option><option value="np">急診專師</option><option value="dr">急診醫師</option><option value="emt">EMT</option><option value="cvs">CVS醫師</option></select></div>
           </div>
           <div class="act"><button class="btn bo" onclick="addSchedule()">新增排班</button></div>
         </div>
@@ -2694,13 +2711,19 @@ function updateNurseTaskProg() {
   document.getElementById('nurseTaskProg').style.width = pct+'%';
   document.getElementById('nurseTaskProgLbl').textContent = done + ' / ' + total;
 
-  // 全部勾完 → 自動轉已完成（確認 CaseID 一致）
+  // 全部勾完 → 自動轉已完成
   if (done === total && total > 0 && missionCase) {
     const sv = caseStatus(missionCase);
-    if (sv === 'activated' || sv === 'active' || sv === 'pending' || sv === '') {
+    // 只要不是已完成或取消，就結案
+    if (sv !== 'closed' && sv !== 'cancelled' && sv !== 'icuTransfer') {
       api('updateCase', {
         caseId: missionCase.CaseID,
-        updates: { status: 'closed', closedTime: new Date().toISOString(), closedBy: CU.username }
+        updates: {
+          status: 'closed',
+          '': 'closed',
+          closedTime: new Date().toISOString(),
+          closedBy: CU.username
+        }
       }).then(r => {
         if (r.success) {
           missionCase.status = 'closed';
@@ -2710,7 +2733,6 @@ function updateNurseTaskProg() {
             activeCase[''] = 'closed';
           }
           toast('✅ 所有任務完成，案件已轉為完成', 'ok');
-          // 更新狀態條
           const bar = document.getElementById('missionStatusBar');
           if (bar) {
             bar.className = 'msbar-cancel';
@@ -2718,6 +2740,12 @@ function updateNurseTaskProg() {
             document.getElementById('missionStatusTitle').textContent = '案件已完成';
             document.getElementById('missionStatusSub').textContent = '護理師任務全部完成';
           }
+          // 同步更新 ECPR 啟動紀錄
+          const msKey2 = 'ecpr_ms_' + missionCase.CaseID;
+          const ms2 = JSON.parse(localStorage.getItem(msKey2)||'{}');
+          generateECPRRecord(missionCase, ms2);
+        } else {
+          toast('結案失敗，請重試', 'err');
         }
       });
     }
@@ -3887,6 +3915,26 @@ function toggleAddAcc() {
   document.getElementById('addAccForm').classList.toggle('hidden');
 }
 
+// 自動輪詢新帳號申請（每30秒）
+let _adminPollTimer = null;
+function startAdminPoll() {
+  if (_adminPollTimer) clearInterval(_adminPollTimer);
+  _adminPollTimer = setInterval(async () => {
+    const wrap = document.getElementById('accTableWrap');
+    if (!wrap || !document.getElementById('pageAdmin')?.classList.contains('active')) return;
+    const res = await api('getAccounts');
+    if (res.success) {
+      const pending = res.accounts.filter(u => String(u.status||'').trim() === 'pending');
+      const badge = document.getElementById('adminPendingBadge');
+      if (badge) {
+        badge.textContent = pending.length > 0 ? pending.length : '';
+        badge.style.display = pending.length > 0 ? 'inline-block' : 'none';
+      }
+      if (pending.length > 0) loadAccounts();
+    }
+  }, 30000);
+}
+
 async function loadAccounts() {
   const wrap = document.getElementById('accTableWrap');
   if (!wrap) return;
@@ -3894,8 +3942,8 @@ async function loadAccounts() {
   if (!res.success || !res.accounts) { wrap.innerHTML = '<div class="empty"><p>無法載入</p></div>'; return; }
 
   const roleLabel = { emt:'EMT', dr:'急診醫師', np:'急診專師', cvs:'CVS醫師', or:'OR', perf:'體循師', nurse:'護理師', admin:'管理者' };
-  const pending = res.accounts.filter(u => u.status === 'pending');
-  const approved = res.accounts.filter(u => u.status !== 'pending');
+  const pending = res.accounts.filter(u => String(u.status||'').trim() === 'pending');
+  const approved = res.accounts.filter(u => String(u.status||'').trim() !== 'pending');
 
   let html = '';
 
@@ -3986,6 +4034,218 @@ async function addSchedule() {
   const res = await api('addSchedule', { date, shift, username, role });
   if (res.success) { toast('排班已新增', 'ok'); loadSchedule(); }
   else toast(res.message || '新增失敗', 'err');
+}
+
+// ════════════════════════════════════════
+//  CVS 班表 Excel 匯入
+// ════════════════════════════════════════
+// 解析後的暫存資料：{ months: [{ sheet, label, year, month, records:[{date,name,username?}] }] }
+let cvsImportData = null;
+
+// 民國年月工作表名稱 → 西元
+// '11504' → { year:2026, month:4, label:'民國115年4月' }
+function parseCvsSheetName(name) {
+  const s = String(name).trim();
+  if (!/^\d{5,6}$/.test(s)) return null;
+  const rocYear = parseInt(s.slice(0, 3), 10);
+  const month = parseInt(s.slice(3), 10);
+  if (!rocYear || month < 1 || month > 12) return null;
+  return { year: rocYear + 1911, month, rocYear, label: '民國' + rocYear + '年' + month + '月' };
+}
+
+// 找到「急診 on call」欄的 colIdx（0-based），以及 headerRow index
+function locateOncallColumn(rows) {
+  for (let r = 0; r < Math.min(5, rows.length); r++) {
+    for (let c = 0; c < (rows[r] || []).length; c++) {
+      const v = String(rows[r][c] || '');
+      if (v.includes('急診') && v.toLowerCase().includes('on')) {
+        return { col: c, headerRow: r };
+      }
+    }
+  }
+  return null;
+}
+
+async function parseCvsExcel() {
+  const fileInput = document.getElementById('cvsFile');
+  const statusEl = document.getElementById('cvsImportStatus');
+  const previewEl = document.getElementById('cvsImportPreview');
+  previewEl.innerHTML = '';
+  cvsImportData = null;
+
+  const file = fileInput.files && fileInput.files[0];
+  if (!file) { statusEl.textContent = '尚未選擇檔案'; return; }
+
+  statusEl.textContent = '⏳ 解析中…';
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+
+    const months = [];
+    wb.SheetNames.forEach(sheetName => {
+      const meta = parseCvsSheetName(sheetName);
+      if (!meta) return; // 非 YYYMM 格式的工作表略過
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      const located = locateOncallColumn(rows);
+      if (!located) return;
+      const { col, headerRow } = located;
+
+      const records = [];
+      for (let r = headerRow + 1; r < rows.length; r++) {
+        const dayRaw = rows[r][0];
+        const day = parseInt(dayRaw, 10);
+        if (!day || day < 1 || day > 31) continue;
+        const name = String(rows[r][col] || '').trim();
+        if (!name) continue;
+        const date = meta.year + '-' + String(meta.month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+        records.push({ date, name });
+      }
+      if (records.length) {
+        months.push({ sheet: sheetName, label: meta.label, year: meta.year, month: meta.month, records });
+      }
+    });
+
+    if (months.length === 0) {
+      statusEl.innerHTML = '<span style="color:var(--red)">❌ 未解析到任何班表。請確認工作表名稱為 YYYMM 格式（如 11504），且有「急診 on call」欄位。</span>';
+      return;
+    }
+
+    // 取得 CVS 帳號清單，做姓名 → username 對應
+    statusEl.textContent = '⏳ 比對 CVS 醫師帳號中…';
+    const accRes = await api('getAccounts');
+    const cvsAccounts = (accRes.success && accRes.accounts ? accRes.accounts : [])
+      .filter(a => a.role === 'cvs');
+    const nameToAcc = {};
+    cvsAccounts.forEach(a => {
+      const dn = String(a.displayname || '').trim();
+      if (dn) nameToAcc[dn] = a;
+    });
+
+    // 為每筆記錄補上 username
+    const missingNames = new Set();
+    months.forEach(m => {
+      m.records.forEach(rec => {
+        const acc = nameToAcc[rec.name];
+        rec.username = acc ? acc.username : null;
+        if (!acc) missingNames.add(rec.name);
+      });
+    });
+
+    cvsImportData = { months, missingNames: [...missingNames], cvsAccounts };
+    renderCvsImportPreview();
+    statusEl.innerHTML = '✅ 解析完成，共 <b>' + months.length + '</b> 個月份';
+  } catch (e) {
+    statusEl.innerHTML = '<span style="color:var(--red)">❌ 解析失敗：' + (e.message || e) + '</span>';
+  }
+}
+
+function renderCvsImportPreview() {
+  const el = document.getElementById('cvsImportPreview');
+  if (!cvsImportData) { el.innerHTML = ''; return; }
+  const { months, missingNames } = cvsImportData;
+
+  let html = '';
+
+  // 缺帳號提醒
+  if (missingNames.length > 0) {
+    html += '<div style="background:rgba(217,43,43,.12);border:1px solid rgba(217,43,43,.35);border-radius:10px;padding:12px;margin:12px 0">';
+    html += '<div style="font-size:.85rem;font-weight:700;color:#FF8080;margin-bottom:6px">⚠️ 以下醫師尚未建立帳號，無法匯入</div>';
+    html += '<div style="font-size:.82rem;color:var(--text2);line-height:1.7">';
+    missingNames.forEach(n => { html += '• ' + n + '　'; });
+    html += '</div>';
+    html += '<div style="font-size:.78rem;color:var(--text3);margin-top:8px">請先到「帳號」分頁新增帳號（職類=CVS醫師、姓名=' + missingNames[0] + ' 等），員編作為帳號，然後重新上傳此 Excel。</div>';
+    html += '</div>';
+  }
+
+  // 月份清單 + 勾選
+  html += '<div style="background:var(--bg4);border:1px solid var(--border2);border-radius:10px;padding:12px;margin:12px 0">';
+  html += '<div style="font-size:.85rem;font-weight:700;margin-bottom:10px">📅 偵測到的月份（勾選要匯入的）</div>';
+  months.forEach((m, idx) => {
+    const mapped = m.records.filter(r => r.username).length;
+    const total = m.records.length;
+    const ok = mapped === total;
+    html += '<label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:' + (idx===0?'none':'1px solid var(--border)') + '">';
+    html += '<input type="checkbox" class="cvs-m-ck" data-idx="' + idx + '" ' + (ok?'checked':'') + ' ' + (mapped===0?'disabled':'') + '>';
+    html += '<div style="flex:1"><div style="font-size:.9rem;font-weight:600">' + m.label + ' <span class="text-muted" style="font-size:.75rem;font-weight:400">(' + m.sheet + ')</span></div>';
+    html += '<div class="text-muted" style="font-size:.75rem">' + mapped + ' / ' + total + ' 筆可匯入' + (mapped<total ? '（缺帳號 ' + (total-mapped) + ' 筆將跳過）' : '') + '</div></div>';
+    html += '<button class="btn bgh btn-sm" onclick="toggleCvsMonthDetail(' + idx + ')">👁️ 檢視</button>';
+    html += '</label>';
+    html += '<div id="cvsMonthDetail-' + idx + '" class="hidden" style="padding:8px 0 0 28px;font-size:.78rem;color:var(--text2);max-height:200px;overflow-y:auto"></div>';
+  });
+  html += '</div>';
+
+  // 動作按鈕
+  html += '<div class="act" style="margin-top:12px">';
+  html += '<button class="btn bo" onclick="confirmCvsImport()">✓ 確認匯入（會覆寫選取月份的 oncall 班表）</button>';
+  html += '<button class="btn bgh" onclick="cancelCvsImport()">取消</button>';
+  html += '</div>';
+
+  el.innerHTML = html;
+}
+
+function toggleCvsMonthDetail(idx) {
+  const d = document.getElementById('cvsMonthDetail-' + idx);
+  if (!d) return;
+  if (d.classList.contains('hidden')) {
+    const m = cvsImportData.months[idx];
+    d.innerHTML = m.records.map(r => {
+      const tag = r.username
+        ? '<span style="color:var(--green-light)">' + r.username + '</span>'
+        : '<span style="color:#FF8080">[未建帳號]</span>';
+      return r.date + ' → ' + r.name + ' ' + tag;
+    }).join('<br>');
+    d.classList.remove('hidden');
+  } else {
+    d.classList.add('hidden');
+  }
+}
+
+function cancelCvsImport() {
+  cvsImportData = null;
+  document.getElementById('cvsFile').value = '';
+  document.getElementById('cvsImportStatus').textContent = '尚未選擇檔案';
+  document.getElementById('cvsImportPreview').innerHTML = '';
+}
+
+async function confirmCvsImport() {
+  if (!cvsImportData) return;
+  const checked = [...document.querySelectorAll('.cvs-m-ck:checked')].map(x => parseInt(x.dataset.idx, 10));
+  if (checked.length === 0) { toast('請至少勾選一個月份', 'err'); return; }
+
+  // 組出要寫入的 schedule 陣列（先過濾掉沒 username 的）
+  const toInsert = [];
+  const monthsToClear = []; // {year, month}
+  checked.forEach(idx => {
+    const m = cvsImportData.months[idx];
+    monthsToClear.push({ year: m.year, month: m.month });
+    m.records.forEach(r => {
+      if (!r.username) return;
+      toInsert.push({ date: r.date, shift: 'oncall', username: r.username, role: 'cvs' });
+    });
+  });
+
+  if (toInsert.length === 0) { toast('沒有可匯入的資料（所有人都缺帳號）', 'err'); return; }
+
+  const statusEl = document.getElementById('cvsImportStatus');
+  statusEl.innerHTML = '⏳ 匯入中… (' + toInsert.length + ' 筆)';
+
+  const res = await api('importSchedules', {
+    clearMonths: monthsToClear,      // 先清這些月份的 oncall 班
+    clearRole: 'cvs',
+    clearShift: 'oncall',
+    schedules: toInsert
+  });
+
+  if (res.success) {
+    statusEl.innerHTML = '✅ 匯入完成：寫入 <b>' + (res.inserted || toInsert.length) + '</b> 筆，清除舊資料 <b>' + (res.cleared || 0) + '</b> 筆';
+    toast('班表匯入完成', 'ok');
+    cancelCvsImport();
+    loadSchedule();
+  } else {
+    statusEl.innerHTML = '<span style="color:var(--red)">❌ 匯入失敗：' + (res.message || '未知錯誤') + '</span>';
+    toast(res.message || '匯入失敗', 'err');
+  }
 }
 
 async function saveSettings() {
