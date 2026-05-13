@@ -3751,12 +3751,32 @@ function checkAndHideNPAlert(caseId) {
 
 function buildTrackSummary() {
   if (!activeCase) return;
-  // 從 Sheets 重新 fetch 最新案件資料（含 ack_ 欄位）
+  // 優先讀快取（5 秒新鮮期），避免短時間內重複呼叫 API
+  const CACHE_FRESH_MS = 5000;
+  try {
+    const raw = sessionStorage.getItem('ecpr_cases_cache');
+    if (raw) {
+      const cache = JSON.parse(raw);
+      if (cache && cache.ts && (Date.now() - cache.ts) < CACHE_FRESH_MS && Array.isArray(cache.cases)) {
+        const fresh = cache.cases.find(c => c.CaseID === activeCase.CaseID);
+        if (fresh) {
+          Object.keys(fresh).forEach(k => { if (k.startsWith('ack_') || k === 'ecprBy' || k === 'ecprByUser') activeCase[k] = fresh[k]; });
+          updateTrackSummary(fresh);
+        } else {
+          updateTrackSummary(activeCase);
+        }
+        return;  // 快取有效，不再打 API
+      }
+    }
+  } catch(e) {}
+
+  // 快取過期或沒有，從 Sheets 重新 fetch
   api('getCases').then(res => {
     if (!res.success || !res.cases) { updateTrackSummary(activeCase); return; }
+    // 順便更新快取
+    try { sessionStorage.setItem('ecpr_cases_cache', JSON.stringify({ ts: Date.now(), cases: res.cases })); } catch(e) {}
     const fresh = res.cases.find(c => c.CaseID === activeCase.CaseID);
     if (fresh) {
-      // 同步更新 activeCase 的 ack 欄位
       Object.keys(fresh).forEach(k => { if (k.startsWith('ack_') || k === 'ecprBy' || k === 'ecprByUser') activeCase[k] = fresh[k]; });
       updateTrackSummary(fresh);
     } else {
@@ -3857,6 +3877,11 @@ async function loadCases() {
     if (closedWrapL) closedWrapL.innerHTML = '';
     return;
   }
+
+  // 快取 5 秒，避免短時間重複呼叫 API
+  try {
+    sessionStorage.setItem('ecpr_cases_cache', JSON.stringify({ ts: Date.now(), cases: res.cases }));
+  } catch(e) {}
 
   const statusMap = {
     pending:     { lbl:'待確認',   cls:'b-yellow' },
