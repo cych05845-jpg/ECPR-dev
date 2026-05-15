@@ -587,6 +587,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js"></script>
   <!-- SheetJS (for CVS 班表 Excel 匯入) -->
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <!-- Mammoth (for 體循技術員班表 .docx 匯入) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 </head>
 <body>
 
@@ -1381,13 +1383,28 @@
           <div id="cvsImportPreview"></div>
         </div>
 
+        <!-- 體循技術員班表匯入 -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ico" style="background:rgba(20,160,130,.15);color:#34D399">📥</div>
+            <div><div class="card-title">匯入體循技術員班表</div><div class="text-muted text-sm">上傳技術員班表（請先在 Word 另存成 .docx）</div></div>
+          </div>
+          <div class="f" style="margin-bottom:12px">
+            <label>選擇 Word 檔案（.docx）</label>
+            <input type="file" id="perfFile" accept=".docx" onchange="parsePerfDocx()">
+          </div>
+          <div class="text-muted text-sm" style="padding:4px 0 8px">班別代碼：<b>1</b>＝1線（優先）、<b>2</b>＝2線（備援）；含「休 / 例」或空白＝不匯入</div>
+          <div id="perfImportStatus" class="text-muted text-sm" style="padding:8px 0">尚未選擇檔案</div>
+          <div id="perfImportPreview"></div>
+        </div>
+
         <div class="card">
           <div class="card-hd"><div class="card-ico" style="background:rgba(245,166,35,.15);color:var(--yellow)">➕</div><div><div class="card-title">新增排班</div></div></div>
           <div class="g2">
             <div class="f"><label>日期</label><input type="date" id="sDate"></div>
-            <div class="f"><label>班別</label><select id="sShift"><option value="day">白班 07-15</option><option value="evening">小夜 15-23</option><option value="night">大夜 23-07</option><option value="oncall">全天 on call</option></select></div>
+            <div class="f"><label>班別</label><select id="sShift"><option value="day">白班 07-15</option><option value="evening">小夜 15-23</option><option value="night">大夜 23-07</option><option value="oncall">全天 on call</option><option value="perf1">體循 1 線</option><option value="perf2">體循 2 線</option></select></div>
             <div class="f"><label>員工編號</label><input type="text" id="sUser" placeholder="帳號"></div>
-            <div class="f"><label>職類</label><select id="sRole"><option value="nurse">護理師</option><option value="np">急診專師</option><option value="dr">急診醫師</option><option value="emt">EMT</option><option value="cvs">CVS醫師</option></select></div>
+            <div class="f"><label>職類</label><select id="sRole"><option value="nurse">護理師</option><option value="np">急診專師</option><option value="dr">急診醫師</option><option value="emt">EMT</option><option value="cvs">CVS醫師</option><option value="perf">體循技術員</option></select></div>
           </div>
           <div class="act"><button class="btn bo" onclick="addSchedule()">新增排班</button></div>
         </div>
@@ -2321,39 +2338,71 @@ async function renderNotifyLog() {
   const wrap = document.getElementById('notifyLogList');
   if (!wrap) return;
 
-  // 先讀 localStorage
+  // 先讀 localStorage（立即顯示）
   let log = JSON.parse(localStorage.getItem('ecpr_notify_log') || '[]');
 
-  // 再從 Sheets 補充（讀最新案件的通知）
+  // 先用「已有」的資料立即渲染畫面（不等 API），避免按下分頁感覺無反應
+  renderNotifyLogFromArray(log, wrap);
+
+  // 從 cases 補充最新通知資料：優先用快取（5 秒新鮮期）
+  let cases = null;
   try {
-    const res = await api('getCases');
-    if (res.success && res.cases) {
-      res.cases.forEach(c => {
-        if (c.lastNotifyMsg && c.lastNotifyTime) {
-          const alreadyHave = log.some(l => l.caseId === c.CaseID && l.time === c.lastNotifyTime);
-          if (!alreadyHave) {
-            log.unshift({
-              id: new Date(c.lastNotifyTime).getTime(),
-              caseId: c.CaseID,
-              verdict: c.lastNotifyType || 'emt_alert',
-              msg: c.lastNotifyMsg,
-              time: c.lastNotifyTime,
-              type: c.lastNotifyType || 'emt_alert'
-            });
-          }
+    const raw = sessionStorage.getItem('ecpr_cases_cache');
+    if (raw) {
+      const cache = JSON.parse(raw);
+      if (cache && cache.ts && (Date.now() - cache.ts) < 5000 && Array.isArray(cache.cases)) {
+        cases = cache.cases;
+      }
+    }
+  } catch(e) {}
+
+  // 快取沒有 → fetch（並更新快取）
+  if (!cases) {
+    try {
+      const res = await api('getCases');
+      if (res.success && res.cases) {
+        cases = res.cases;
+        try { sessionStorage.setItem('ecpr_cases_cache', JSON.stringify({ ts: Date.now(), cases: res.cases })); } catch(e) {}
+      }
+    } catch(e) {}
+  }
+
+  // 合併新通知到 log
+  if (cases) {
+    let added = false;
+    cases.forEach(c => {
+      if (c.lastNotifyMsg && c.lastNotifyTime) {
+        const alreadyHave = log.some(l => l.caseId === c.CaseID && l.time === c.lastNotifyTime);
+        if (!alreadyHave) {
+          log.unshift({
+            id: new Date(c.lastNotifyTime).getTime(),
+            caseId: c.CaseID,
+            verdict: c.lastNotifyType || 'emt_alert',
+            msg: c.lastNotifyMsg,
+            time: c.lastNotifyTime,
+            type: c.lastNotifyType || 'emt_alert'
+          });
+          added = true;
         }
-      });
-      // 合併後去重、排序、存回
+      }
+    });
+    if (added) {
       log = log.filter((v,i,a) => a.findIndex(t => t.id === v.id) === i);
       log.sort((a,b) => b.id - a.id);
       if (log.length > 50) log = log.slice(0,50);
       localStorage.setItem('ecpr_notify_log', JSON.stringify(log));
+      // 有新通知才重畫
+      renderNotifyLogFromArray(log, wrap);
     }
-  } catch(e) {}
+  }
 
   // 通知頁有記錄時，讓通知導覽徽章亮起
   const notifyNavBtn = document.querySelector('[data-page="pageNotify"]');
   if (notifyNavBtn && log.length) notifyNavBtn.classList.add('has-task');
+}
+
+// 純渲染：把通知陣列畫到指定容器
+function renderNotifyLogFromArray(log, wrap) {
   if (!log.length) { wrap.innerHTML = '<div class="empty"><div class="ei">🔔</div><p>尚無通知記錄</p></div>'; return; }
   const verdictMap = { yes:'建議啟動', borderline:'待評估', no:'不建議啟動', activated:'正式啟動', record:'啟動紀錄', cancelled:'不啟動' };
   const verdictColor = { yes:'var(--green-light)', borderline:'#FFD060', no:'#FF8080', activated:'#FF6B6B', record:'var(--green-light)', cancelled:'var(--text3)' };
@@ -2394,12 +2443,28 @@ let missionPollInterval = null;
 let missionSDMOpen = false;
 
 async function loadMission() {
-  const res = await api('getCases');
-  if (!res.success || !res.cases) {
-    document.getElementById('missionNoCase').classList.remove('hidden');
-    document.getElementById('missionCase').classList.add('hidden');
-    return;
+  // 優先用快取（5 秒新鮮期）
+  let cases = null;
+  try {
+    const raw = sessionStorage.getItem('ecpr_cases_cache');
+    if (raw) {
+      const cache = JSON.parse(raw);
+      if (cache && cache.ts && (Date.now() - cache.ts) < 5000 && Array.isArray(cache.cases)) {
+        cases = cache.cases;
+      }
+    }
+  } catch(e) {}
+  if (!cases) {
+    const res = await api('getCases');
+    if (!res.success || !res.cases) {
+      document.getElementById('missionNoCase').classList.remove('hidden');
+      document.getElementById('missionCase').classList.add('hidden');
+      return;
+    }
+    cases = res.cases;
+    try { sessionStorage.setItem('ecpr_cases_cache', JSON.stringify({ ts: Date.now(), cases: cases })); } catch(e) {}
   }
+  const res = { success: true, cases: cases };  // 後續邏輯沿用 res
 
   const DONE = ['closed','icuTransfer','cancelled'];
   const now = Date.now();
@@ -4491,6 +4556,252 @@ async function confirmCvsImport() {
     statusEl.innerHTML = '✅ 匯入完成：寫入 <b>' + (res.inserted || toInsert.length) + '</b> 筆，清除舊資料 <b>' + (res.cleared || 0) + '</b> 筆';
     toast('班表匯入完成', 'ok');
     cancelCvsImport();
+    loadSchedule();
+  } else {
+    statusEl.innerHTML = '<span style="color:var(--red)">❌ 匯入失敗：' + (res.message || '未知錯誤') + '</span>';
+    toast(res.message || '匯入失敗', 'err');
+  }
+}
+
+// ════════════════════════════════════════
+//  體循技術員班表匯入（.docx 橫向矩陣格式）
+// ════════════════════════════════════════
+let perfImportData = null;
+
+// 從檔名嘗試解析年月，例如「2026-05_技術員班表.docx」→ {year:2026, month:5}
+// 解析失敗則回傳 null，後面會改用「今天的年月」
+function parsePerfFileName(fname) {
+  const m = String(fname || '').match(/(\d{4})[-_\.]?(\d{1,2})/);
+  if (!m) return null;
+  const year = parseInt(m[1], 10);
+  const month = parseInt(m[2], 10);
+  if (year < 2020 || year > 2100 || month < 1 || month > 12) return null;
+  return { year, month };
+}
+
+// 把單一格子內容判定為 1線 / 2線 / 跳過
+// '1'→1線, '2'→2線, '1/休','2/例',''→ 跳過
+function classifyPerfCell(raw) {
+  const s = String(raw || '').replace(/\s/g, '');
+  if (!s) return null;
+  if (s.indexOf('休') >= 0 || s.indexOf('例') >= 0) return null; // 休假
+  if (s === '1') return 1;
+  if (s === '2') return 2;
+  return null; // 其他無法辨識的也跳過
+}
+
+async function parsePerfDocx() {
+  const fileInput = document.getElementById('perfFile');
+  const statusEl = document.getElementById('perfImportStatus');
+  const previewEl = document.getElementById('perfImportPreview');
+  previewEl.innerHTML = '';
+  perfImportData = null;
+
+  const file = fileInput.files && fileInput.files[0];
+  if (!file) { statusEl.textContent = '尚未選擇檔案'; return; }
+
+  statusEl.textContent = '⏳ 解析中…';
+  try {
+    const buf = await file.arrayBuffer();
+    // mammoth 把 docx 轉成 HTML，再從 HTML 抽表格
+    const result = await mammoth.convertToHtml({ arrayBuffer: buf });
+    const html = result.value;
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const table = doc.querySelector('table');
+    if (!table) {
+      statusEl.innerHTML = '<span style="color:var(--red)">❌ 文件中找不到表格，請確認是技術員班表的 .docx</span>';
+      return;
+    }
+
+    // 抽出所有列
+    const trs = [...table.querySelectorAll('tr')];
+    const grid = trs.map(tr => [...tr.querySelectorAll('td,th')].map(td => td.textContent.trim()));
+
+    // 找「日期列」：第一格是「日期」，後面是 1,2,3...
+    let dateRowIdx = -1, dayCols = [];
+    for (let r = 0; r < Math.min(3, grid.length); r++) {
+      const row = grid[r];
+      if (String(row[0]).indexOf('日期') >= 0) {
+        // 收集這列中是數字的欄位
+        const cols = [];
+        for (let c = 1; c < row.length; c++) {
+          const d = parseInt(row[c], 10);
+          if (d >= 1 && d <= 31) cols.push({ col: c, day: d });
+        }
+        if (cols.length >= 20) { dateRowIdx = r; dayCols = cols; break; }
+      }
+    }
+    if (dateRowIdx < 0) {
+      statusEl.innerHTML = '<span style="color:var(--red)">❌ 找不到日期列（應有「日期」並橫向列出 1~31）</span>';
+      return;
+    }
+
+    // 年月：優先用檔名，失敗用今天
+    let meta = parsePerfFileName(file.name);
+    let metaSource = '檔名';
+    if (!meta) {
+      const now = new Date();
+      meta = { year: now.getFullYear(), month: now.getMonth() + 1 };
+      metaSource = '今天日期（檔名無法解析）';
+    }
+
+    // 人員列：日期列之後，每列第一格是姓名（且不是「日期」「星期」之類）
+    const records = [];   // {date, name, line}  line=1 or 2
+    const peopleNames = new Set();
+    for (let r = dateRowIdx + 1; r < grid.length; r++) {
+      const row = grid[r];
+      const rawName = String(row[0] || '').replace(/\s/g, ''); // 去掉「游 承 哲」的空格
+      if (!rawName) continue;
+      if (rawName.indexOf('日期') >= 0 || rawName.indexOf('星期') >= 0) continue;
+      // 星期列特徵：整列都是「一二三四五六日」
+      if (/^[一二三四五六日]+$/.test(rawName)) continue;
+      peopleNames.add(rawName);
+      dayCols.forEach(dc => {
+        const line = classifyPerfCell(row[dc.col]);
+        if (!line) return;
+        const date = meta.year + '-' + String(meta.month).padStart(2,'0') + '-' + String(dc.day).padStart(2,'0');
+        records.push({ date, name: rawName, line });
+      });
+    }
+
+    if (records.length === 0) {
+      statusEl.innerHTML = '<span style="color:var(--red)">❌ 沒有解析到任何班別（1 或 2）</span>';
+      return;
+    }
+
+    // 比對 perf 帳號
+    statusEl.textContent = '⏳ 比對體循技術員帳號中…';
+    const accRes = await api('getAccounts');
+    const perfAccounts = (accRes.success && accRes.accounts ? accRes.accounts : [])
+      .filter(a => a.role === 'perf');
+    const nameToAcc = {};
+    perfAccounts.forEach(a => {
+      const dn = String(a.displayname || '').replace(/\s/g, '');
+      if (dn) nameToAcc[dn] = a;
+    });
+
+    const missingNames = new Set();
+    records.forEach(rec => {
+      const acc = nameToAcc[rec.name];
+      rec.username = acc ? acc.username : null;
+      if (!acc) missingNames.add(rec.name);
+    });
+
+    perfImportData = {
+      year: meta.year, month: meta.month, metaSource,
+      records, missingNames: [...missingNames],
+      peopleNames: [...peopleNames]
+    };
+    renderPerfImportPreview();
+    statusEl.innerHTML = '✅ 解析完成：<b>' + meta.year + '年' + meta.month + '月</b>（年月來源：' + metaSource + '）';
+  } catch (e) {
+    statusEl.innerHTML = '<span style="color:var(--red)">❌ 解析失敗：' + (e.message || e) + '</span>';
+  }
+}
+
+function renderPerfImportPreview() {
+  const el = document.getElementById('perfImportPreview');
+  if (!perfImportData) { el.innerHTML = ''; return; }
+  const { year, month, records, missingNames, peopleNames } = perfImportData;
+
+  let html = '';
+
+  // 缺帳號提醒
+  if (missingNames.length > 0) {
+    html += '<div style="background:rgba(217,43,43,.12);border:1px solid rgba(217,43,43,.35);border-radius:10px;padding:12px;margin:12px 0">';
+    html += '<div style="font-size:.85rem;font-weight:700;color:#FF8080;margin-bottom:6px">⚠️ 以下技術員尚未建立帳號，將跳過</div>';
+    html += '<div style="font-size:.82rem;color:var(--text2);line-height:1.7">';
+    missingNames.forEach(n => { html += '• ' + n + '　'; });
+    html += '</div>';
+    html += '<div style="font-size:.78rem;color:var(--text3);margin-top:8px">請先到「帳號」分頁新增帳號（職類＝體循技術員、姓名須與班表一致），員編作為帳號，再重新上傳。</div>';
+    html += '</div>';
+  }
+
+  const mapped = records.filter(r => r.username).length;
+  const total = records.length;
+  const line1Count = records.filter(r => r.line === 1 && r.username).length;
+  const line2Count = records.filter(r => r.line === 2 && r.username).length;
+
+  html += '<div style="background:var(--bg4);border:1px solid var(--border2);border-radius:10px;padding:12px;margin:12px 0">';
+  html += '<div style="font-size:.85rem;font-weight:700;margin-bottom:8px">📅 ' + year + ' 年 ' + month + ' 月　共 ' + peopleNames.length + ' 位技術員</div>';
+  html += '<div class="text-muted" style="font-size:.78rem;line-height:1.8">';
+  html += '可匯入 <b style="color:var(--green-light)">' + mapped + '</b> / ' + total + ' 筆';
+  if (mapped < total) html += '（缺帳號 ' + (total - mapped) + ' 筆將跳過）';
+  html += '<br>　• 1 線：' + line1Count + ' 筆　• 2 線：' + line2Count + ' 筆';
+  html += '</div>';
+  html += '<button class="btn bgh btn-sm" style="margin-top:8px" onclick="togglePerfDetail()">👁️ 檢視明細</button>';
+  html += '<div id="perfImportDetail" class="hidden" style="padding:8px 0 0;font-size:.76rem;color:var(--text2);max-height:240px;overflow-y:auto"></div>';
+  html += '</div>';
+
+  html += '<div class="act" style="margin-top:12px">';
+  html += '<button class="btn bo" onclick="confirmPerfImport()">✓ 確認匯入（會覆寫 ' + year + '年' + month + '月 的體循班表）</button>';
+  html += '<button class="btn bgh" onclick="cancelPerfImport()">取消</button>';
+  html += '</div>';
+
+  el.innerHTML = html;
+}
+
+function togglePerfDetail() {
+  const d = document.getElementById('perfImportDetail');
+  if (!d) return;
+  if (d.classList.contains('hidden')) {
+    const recs = perfImportData.records.slice().sort((a,b) => a.date.localeCompare(b.date) || a.line - b.line);
+    d.innerHTML = recs.map(r => {
+      const lineTag = r.line === 1
+        ? '<span style="color:#34D399;font-weight:700">1線</span>'
+        : '<span style="color:#FBBF24;font-weight:700">2線</span>';
+      const accTag = r.username
+        ? '<span style="color:var(--green-light)">' + r.username + '</span>'
+        : '<span style="color:#FF8080">[未建帳號]</span>';
+      return r.date + '　' + lineTag + '　' + r.name + ' ' + accTag;
+    }).join('<br>');
+    d.classList.remove('hidden');
+  } else {
+    d.classList.add('hidden');
+  }
+}
+
+function cancelPerfImport() {
+  perfImportData = null;
+  document.getElementById('perfFile').value = '';
+  document.getElementById('perfImportStatus').textContent = '尚未選擇檔案';
+  document.getElementById('perfImportPreview').innerHTML = '';
+}
+
+async function confirmPerfImport() {
+  if (!perfImportData) return;
+  const { year, month, records } = perfImportData;
+
+  // shift 用 perf1 / perf2 區分 1 線 / 2 線
+  const toInsert = [];
+  records.forEach(r => {
+    if (!r.username) return;
+    toInsert.push({
+      date: r.date,
+      shift: r.line === 1 ? 'perf1' : 'perf2',
+      username: r.username,
+      role: 'perf'
+    });
+  });
+
+  if (toInsert.length === 0) { toast('沒有可匯入的資料（所有人都缺帳號）', 'err'); return; }
+
+  const statusEl = document.getElementById('perfImportStatus');
+  statusEl.innerHTML = '⏳ 匯入中… (' + toInsert.length + ' 筆)';
+
+  // 先清除該月份所有 perf 班（perf1 + perf2 都清），再寫入
+  // clearShift 留空 = 清除該 role 在該月份的所有班別
+  const res = await api('importSchedules', {
+    clearMonths: [{ year, month }],
+    clearRole: 'perf',
+    clearShift: '',          // 空字串 = 不限 shift，清掉該月所有 perf 班
+    schedules: toInsert
+  });
+
+  if (res.success) {
+    statusEl.innerHTML = '✅ 匯入完成：寫入 <b>' + (res.inserted || toInsert.length) + '</b> 筆，清除舊資料 <b>' + (res.cleared || 0) + '</b> 筆';
+    toast('體循班表匯入完成', 'ok');
+    cancelPerfImport();
     loadSchedule();
   } else {
     statusEl.innerHTML = '<span style="color:var(--red)">❌ 匯入失敗：' + (res.message || '未知錯誤') + '</span>';
