@@ -1103,12 +1103,12 @@
             </div>
             <div id="sdmEntryLocked" class="alert al-yellow" style="margin-bottom:0">
               <span class="alert-icon">⏳</span>
-              <div class="alert-body">尚未記錄 ECMO 建立時間。Quick SDM 於 ECMO 建立後、取得動脈血液氣體分析結果時執行。</div>
+              <div class="alert-body">提醒：尚未記錄 ECMO 建立時間（Door-to-ECMO 品管指標）。Quick SDM 應於 ECMO 建立後取得 ABG 時執行。</div>
             </div>
             <div id="sdmEntryReady" class="hidden">
               <div class="alert al-green" style="margin-bottom:12px">
                 <span class="alert-icon">✅</span>
-                <div class="alert-body">ECMO 已建立 <span id="sdmEcmoTime"></span>　可執行預後分層溝通</div>
+                <div class="alert-body">可執行預後分層溝通 <span id="sdmEcmoTime"></span></div>
               </div>
               <button class="act-btn-confirm" id="sdmGoBtn" onclick="openQuickSDM()"
                       style="background:linear-gradient(135deg,var(--blue),#0e4a80);box-shadow:0 4px 20px rgba(26,107,181,.4)">
@@ -2541,7 +2541,6 @@ async function loadMission() {
     extraEl.innerHTML = '';
   }
 
-  renderSDMEntry(c);
   startMissionPoll();
 }
 
@@ -2647,6 +2646,8 @@ function renderMission(c) {
       startNPAlertTimerWithDelay(c, 500);
     }
   }
+
+  renderSDMEntry(c);
 }
 
 // ── 決策角色狀態 ─────────────────────────
@@ -3029,7 +3030,7 @@ function missionRecAckCancel() {
 /* ══════════════════════════════════════
    Quick SDM 入口（附件 7.2／7.3）
    ══════════════════════════════════════ */
-const SDM_EXEC_ROLES = ['dr'];              // 可執行：急診主治醫師
+const SDM_EXEC_ROLES = ['dr','np'];         // 可執行：急診主治醫師、急診專師
 const SDM_VIEW_ROLES = ['dr','np','cvs'];   // 可看到入口
 
 function renderSDMEntry(c) {
@@ -3041,14 +3042,13 @@ function renderSDMEntry(c) {
   if (!(canView && activated)) return;
 
   const t = c.ecmoTime || '';
+  // 未記錄 ECMO 時間只提醒，不阻擋：不應因行政欄位未填而擋住與家屬的溝通
   document.getElementById('sdmEntryLocked').classList.toggle('hidden', !!t);
-  document.getElementById('sdmEntryReady').classList.toggle('hidden', !t);
-  if (t) {
-    document.getElementById('sdmEcmoTime').textContent = '（' + t + '）';
-    const exec = SDM_EXEC_ROLES.includes(CU.role);
-    document.getElementById('sdmGoBtn').classList.toggle('hidden', !exec);
-    document.getElementById('sdmEntryReadonly').classList.toggle('hidden', exec);
-  }
+  document.getElementById('sdmEntryReady').classList.remove('hidden');
+  document.getElementById('sdmEcmoTime').textContent = t ? '（' + t + '）' : '';
+  const exec = SDM_EXEC_ROLES.includes(CU.role);
+  document.getElementById('sdmGoBtn').classList.toggle('hidden', !exec);
+  document.getElementById('sdmEntryReadonly').classList.toggle('hidden', exec);
   // ECMO 時間記錄卡：已啟動且尚未記錄時顯示
   const stamp = document.getElementById('ecmoStampCard');
   if (stamp) {
