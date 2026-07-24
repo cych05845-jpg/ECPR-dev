@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Quick SDM 預後分層溝通工具（附件 7.2／7.3）</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap');
+
+:root{
+  --red:#D92B2B; --red-dark:#A81E1E; --red-light:#FF4444;
+  --orange:#E8720C; --yellow:#F5A623; --yellow-dark:#C47F10; --yellow-light:#FFD060;
+  --green:#1A9E5C; --green-dark:#0D7D48; --green-light:#22C76E;
+  --blue:#1A6BB5; --blue-light:#2E87D4;
+  --bg:#0A0C10; --bg2:#111318; --bg3:#181B22; --bg4:#1E222C;
+  --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.14);
+  --text:#F0F2F7; --text2:#9CA3B0; --text3:#555E6E;
+  --radius:12px; --radius-sm:8px;
+  --shadow:0 12px 40px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{-webkit-text-size-adjust:100%}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+
+/* ══ 登入 ══ */
+#loginGate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
+  background:radial-gradient(ellipse at 30% 20%,rgba(217,43,43,.12) 0%,transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(26,107,181,.08) 0%,transparent 50%),var(--bg)}
+.login-card{width:100%;max-width:380px;background:var(--bg3);border:1px solid var(--border2);border-radius:16px;padding:34px 28px;box-shadow:0 20px 60px rgba(0,0,0,.8)}
+.login-logo{text-align:center;margin-bottom:22px}
+.login-logo .icon{width:56px;height:56px;background:linear-gradient(135deg,var(--red),var(--red-dark));border-radius:14px;display:inline-flex;align-items:center;justify-content:center;font-size:1.6rem;margin-bottom:12px;box-shadow:0 4px 20px rgba(217,43,43,.4)}
+.login-logo h1{font-size:1.15rem;font-weight:900}
+.login-logo p{font-size:.72rem;color:var(--text3);margin-top:5px;line-height:1.5}
+.fg{margin-bottom:15px}
+.fg label{display:block;font-size:.7rem;font-weight:600;color:var(--text2);margin-bottom:6px;letter-spacing:.05em}
+.fg input{width:100%;padding:14px;background:var(--bg4);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-size:1rem;font-family:inherit;outline:none;transition:border-color .2s}
+.fg input:focus{border-color:var(--red)}
+.fg input::placeholder{color:var(--text3)}
+.doc-hint{font-size:.7rem;margin-top:7px;line-height:1.5;min-height:1em}
+.doc-hint.ok{color:var(--green-light)} .doc-hint.new{color:var(--text3)}
+.btn-login{width:100%;min-height:56px;background:linear-gradient(135deg,var(--red),var(--red-dark));border:none;border-radius:var(--radius-sm);color:#fff;font-size:1.05rem;font-weight:800;font-family:inherit;cursor:pointer;box-shadow:0 4px 16px rgba(217,43,43,.3);margin-top:6px}
+.btn-login:hover{filter:brightness(1.08)}
+.login-hint{margin-top:16px;font-size:.68rem;color:var(--text3);line-height:1.6;text-align:center}
+
+/* ══ 主框架 ══ */
+#app{display:none;max-width:640px;margin:0 auto;padding-bottom:70px}
+.top-nav{position:sticky;top:0;z-index:50;background:rgba(10,12,16,.94);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);height:58px;display:flex;align-items:center;padding:0 14px;gap:10px}
+.nav-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--red),var(--red-dark));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;box-shadow:0 2px 8px rgba(217,43,43,.4)}
+.nav-title{font-size:.92rem;font-weight:800;line-height:1.2}
+.nav-sub{font-size:.64rem;color:var(--text3)}
+.user-chip{display:flex;align-items:center;gap:8px;padding:6px 11px;background:var(--bg4);border:1px solid var(--border);border-radius:20px;margin-left:auto;font-size:.75rem;white-space:nowrap}
+.user-chip b{color:var(--text)}
+.chip-logout{background:none;border:none;color:var(--text3);cursor:pointer;font-size:.72rem;font-family:inherit;padding:2px}
+.chip-logout:hover{color:var(--red-light)}
+.wrap{padding:6px 16px}
+.ss-badge{margin-top:14px;padding:11px 14px;background:rgba(26,158,92,.1);border:1px solid rgba(26,158,92,.3);
+  border-radius:var(--radius-sm);color:var(--green-light);font-size:.78rem;font-weight:600;line-height:1.5}
+.nav-back{width:42px;height:42px;flex-shrink:0;background:var(--bg4);border:1px solid var(--border2);border-radius:11px;
+  color:var(--text);font-size:1.25rem;font-family:inherit;cursor:pointer;display:none;align-items:center;justify-content:center}
+.nav-back:hover{background:var(--bg3)}
+.nav-back.on{display:flex}
+
+/* 入口卡 */
+.entry{width:100%;display:flex;align-items:center;gap:16px;padding:22px 20px;margin:18px 0 6px;
+  background:linear-gradient(135deg,rgba(217,43,43,.16),rgba(217,43,43,.06));
+  border:2px solid rgba(217,43,43,.4);border-radius:var(--radius);cursor:pointer;font-family:inherit;
+  color:var(--text);text-align:left;transition:all .2s}
+.entry:hover{border-color:var(--red);transform:translateY(-2px);box-shadow:0 8px 26px rgba(217,43,43,.2)}
+.entry-ico{width:56px;height:56px;flex-shrink:0;background:linear-gradient(135deg,var(--red),var(--red-dark));
+  border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;box-shadow:0 4px 16px rgba(217,43,43,.35)}
+.entry-t{font-size:1.1rem;font-weight:900}
+.entry-s{font-size:.78rem;color:var(--text2);margin-top:4px;line-height:1.5}
+.entry-go{margin-left:auto;font-size:1.3rem;color:var(--red-light);flex-shrink:0}
+
+/* 確認框 */
+.modal{position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;padding:20px}
+.modal.show{display:flex}
+.modal-box{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:26px 22px;width:100%;max-width:380px;box-shadow:var(--shadow)}
+.modal-title{font-size:1.02rem;font-weight:800;margin-bottom:8px}
+.modal-msg{font-size:.88rem;color:var(--text2);line-height:1.6;margin-bottom:20px}
+.modal-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal-btns button{min-height:52px;border-radius:var(--radius-sm);font-size:.92rem;font-weight:700;font-family:inherit;cursor:pointer;border:none}
+.btn-mcancel{background:var(--bg4);color:var(--text2);border:1px solid var(--border2)!important}
+.btn-mok{background:var(--red);color:#fff}
+
+/* ══ 步驟標題 ══ */
+.step{display:flex;align-items:center;gap:12px;margin:24px 0 10px}
+.step-n{width:30px;height:30px;border-radius:50%;background:var(--bg4);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:.88rem;font-weight:700;color:var(--text2);flex-shrink:0}
+.step-t{font-size:1rem;font-weight:800}
+.step-s{font-size:.71rem;color:var(--text3);margin-top:1px}
+
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.f{margin-bottom:12px}
+.f:last-child{margin-bottom:0}
+.f label{display:block;font-size:.73rem;font-weight:600;color:var(--text2);margin-bottom:6px}
+.f input,.f select,.f textarea{width:100%;min-height:50px;padding:12px 13px;background:var(--bg4);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:.95rem;font-family:inherit;outline:none;transition:border-color .2s}
+.f input:focus,.f textarea:focus{border-color:var(--blue-light);background:var(--bg3)}
+.f input::placeholder{color:var(--text3)}
+.f input:disabled{opacity:.85}
+.f textarea{resize:vertical;min-height:76px;line-height:1.6}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* ══ ② ABG ══ */
+.zone-table{border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:14px}
+.zone-head,.zone-row{display:grid;grid-template-columns:72px 1fr 1fr 76px;align-items:center;gap:6px}
+.zone-head{background:var(--bg4);padding:7px 12px;border-bottom:1px solid var(--border)}
+.zone-head span{font-size:.63rem;color:var(--text3);font-weight:600}
+.zone-row{padding:10px 12px;border-top:1px solid var(--border);transition:all .25s}
+.zone-row:first-of-type{border-top:none}
+.zone-row span{font-size:.8rem;font-weight:700;font-family:'JetBrains Mono',monospace}
+.zone-row .zt-out{font-size:.7rem;font-family:inherit}
+.zg{background:rgba(26,158,92,.07)} .zg span{color:var(--green-light)}
+.zy{background:rgba(245,166,35,.07)} .zy span{color:var(--yellow-light)}
+.zr{background:rgba(217,43,43,.07)} .zr span{color:var(--red-light)}
+.zone-row.hl{transform:scale(1.015)}
+.zg.hl{background:rgba(26,158,92,.2);box-shadow:inset 0 0 0 2px var(--green)}
+.zy.hl{background:rgba(245,166,35,.2);box-shadow:inset 0 0 0 2px var(--yellow)}
+.zr.hl{background:rgba(217,43,43,.22);box-shadow:inset 0 0 0 2px var(--red)}
+
+.qbox{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:13px;margin-bottom:12px}
+.qhd{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+.qhd label{font-size:.78rem;font-weight:800;color:var(--text)}
+.qcut{font-size:.66rem;color:var(--text3);font-family:'JetBrains Mono',monospace}
+.qclear{margin-left:auto;background:none;border:none;color:var(--text3);font-size:.72rem;font-family:inherit;cursor:pointer;padding:4px 6px}
+.qclear:hover{color:var(--red-light)}
+.stepper{display:flex;align-items:stretch;gap:9px}
+.stepper button{width:58px;background:var(--bg4);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-size:1.5rem;font-weight:700;font-family:inherit;cursor:pointer;flex-shrink:0}
+.stepper button:active{background:var(--blue)}
+.big-num{flex:1;min-width:0;width:100%;min-height:62px!important;font-size:1.7rem!important;text-align:center;font-family:'JetBrains Mono',monospace;font-weight:600;padding:10px!important;background:var(--bg4);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);outline:none;font-family:'JetBrains Mono',monospace}
+.big-num:focus{border-color:var(--blue-light)}
+.qchips{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:10px}
+.qchip{min-height:48px;background:var(--bg4);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-family:'JetBrains Mono',monospace;font-size:1.02rem;font-weight:600;cursor:pointer;transition:all .12s}
+.qchip.g{color:var(--green-light);border-color:rgba(26,158,92,.3)}
+.qchip.y{color:var(--yellow-light);border-color:rgba(245,166,35,.3)}
+.qchip.r{color:var(--red-light);border-color:rgba(217,43,43,.3)}
+.qchip.g.sel{background:rgba(26,158,92,.24);border-color:var(--green);box-shadow:0 0 0 2px rgba(26,158,92,.3)}
+.qchip.y.sel{background:rgba(245,166,35,.24);border-color:var(--yellow);box-shadow:0 0 0 2px rgba(245,166,35,.3)}
+.qchip.r.sel{background:rgba(217,43,43,.24);border-color:var(--red);box-shadow:0 0 0 2px rgba(217,43,43,.3)}
+.qhint{font-size:.8rem;color:var(--text2);line-height:1.65;margin-top:2px}
+.std-toggle{width:100%;min-height:48px;background:var(--bg4);border:1px solid var(--border);border-radius:var(--radius-sm);
+  color:var(--text2);font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer;margin-bottom:12px;transition:all .15s}
+.std-toggle:hover{border-color:var(--border2);color:var(--text)}
+.std-note{font-size:.78rem;color:var(--text3);line-height:1.6;padding:0 2px 2px}
+
+/* ══ 判定橫幅：整塊染色 ══ */
+@keyframes vIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+#verdict{display:none;border-radius:var(--radius);padding:20px 18px;margin-top:14px}
+#verdict.on{display:block;animation:vIn .22s ease}
+#verdict .v-zone{font-size:1.55rem;font-weight:900;letter-spacing:.02em;line-height:1.2}
+#verdict .v-rate{font-size:.9rem;font-weight:800;margin-top:7px;opacity:.92}
+#verdict .v-act{font-size:.86rem;line-height:1.6;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.28)}
+#verdict{border:2px solid transparent}
+#verdict .v-act{color:var(--text2);border-top-color:rgba(255,255,255,.13)}
+#verdict.zg{background:rgba(26,158,92,.13);border-color:rgba(26,158,92,.5);box-shadow:0 4px 20px rgba(26,158,92,.14)}
+#verdict.zg .v-zone,#verdict.zg .v-rate{color:var(--green-light)}
+#verdict.zy{background:rgba(245,166,35,.13);border-color:rgba(245,166,35,.5);box-shadow:0 4px 20px rgba(245,166,35,.13)}
+#verdict.zy .v-zone,#verdict.zy .v-rate{color:var(--yellow-light)}
+#verdict.zr{background:rgba(217,43,43,.15);border-color:rgba(217,43,43,.55);box-shadow:0 4px 22px rgba(217,43,43,.18)}
+#verdict.zr .v-zone,#verdict.zr .v-rate{color:#FF8080}
+
+/* ══ 主要動作鈕（隨判區變色） ══ */
+.act-primary{width:100%;min-height:80px;border:none;border-radius:var(--radius);font-family:inherit;
+  font-size:1.06rem;font-weight:900;letter-spacing:.03em;cursor:pointer;color:#fff;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;transition:all .2s;margin-top:12px}
+.act-primary .ap-sub{display:inline-block;font-size:.82rem;font-weight:800;letter-spacing:.02em;color:#fff;
+  background:rgba(0,0,0,.28);padding:4px 13px;border-radius:13px}
+.act-primary:not(:disabled):hover{filter:brightness(1.1)}
+.act-primary:not(:disabled):active{filter:brightness(.9)}
+.act-primary:disabled{background:var(--bg4);color:var(--text3);cursor:not-allowed;box-shadow:none}
+.act-primary:disabled .ap-sub{background:rgba(0,0,0,.25);color:var(--text3)}
+.act-primary.zg{background:linear-gradient(135deg,var(--green),var(--green-dark));box-shadow:0 4px 18px rgba(26,158,92,.35)}
+.act-primary.zy{background:linear-gradient(135deg,#A66806,#8A5703);box-shadow:0 4px 18px rgba(166,104,6,.35)}
+.act-primary.zr{background:linear-gradient(135deg,var(--red),var(--red-dark));box-shadow:0 4px 20px rgba(217,43,43,.42)}
+
+/* ══ ③ 到場／電話 ══ */
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.seg button{min-height:88px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
+  background:rgba(46,135,212,.07);border:2px solid rgba(46,135,212,.26);border-radius:var(--radius);
+  color:var(--text);font-family:inherit;font-size:.98rem;font-weight:700;cursor:pointer;transition:all .2s}
+.seg button .sg-ico{font-size:1.75rem}
+.seg button:hover{transform:translateY(-2px)}
+.seg button.sel{background:rgba(46,135,212,.22);border-color:var(--blue-light);box-shadow:0 0 0 3px rgba(46,135,212,.25)}
+
+/* 下拉選單 */
+.f select{appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:38px;
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%239CA3B0' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center}
+.f select option{background:var(--bg3)}
+
+/* 姓名 + 手寫 */
+.name-row{display:flex;gap:9px;align-items:stretch}
+.name-row input{flex:1;min-width:0}
+.pen-btn{width:62px;flex-shrink:0;background:rgba(46,135,212,.1);border:2px solid rgba(46,135,212,.32);border-radius:var(--radius-sm);
+  color:var(--blue-light);font-size:1.4rem;cursor:pointer;font-family:inherit;transition:all .15s}
+.pen-btn:hover{background:rgba(46,135,212,.2)}
+.ink-thumb{display:none;align-items:center;gap:10px;margin-top:9px;padding:8px 10px;background:#fff;border:1px solid var(--border2);border-radius:var(--radius-sm)}
+.ink-thumb.on{display:flex}
+.ink-thumb img{height:40px;max-width:70%;object-fit:contain}
+.ink-thumb button{margin-left:auto;min-height:36px;padding:0 12px;background:var(--bg4);border:1px solid var(--border2);border-radius:7px;color:var(--text2);font-family:inherit;font-size:.76rem;cursor:pointer}
+.ink-thumb button:hover{color:var(--red-light)}
+
+/* 手寫板 */
+#padOverlay{position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.9);display:none;flex-direction:column;padding:16px;gap:12px}
+#padOverlay.show{display:flex}
+.pad-hd{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.pad-t{font-size:1rem;font-weight:800}
+.pad-s{font-size:.72rem;color:var(--text3);margin-top:2px}
+#padCanvas{flex:1;width:100%;background:#fff;border-radius:var(--radius);touch-action:none;cursor:crosshair;min-height:180px}
+.pad-ft{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:10px;flex-shrink:0}
+.pad-ft button{min-height:60px;border-radius:var(--radius);font-family:inherit;font-size:1rem;font-weight:800;cursor:pointer;border:2px solid var(--border2);background:var(--bg4);color:var(--text)}
+.pad-ft button.ok{background:linear-gradient(135deg,var(--green),var(--green-dark));border-color:transparent;color:#fff}
+
+/* ══ ④ 治療目標 ══ */
+.opt{display:flex;align-items:center;gap:14px;min-height:70px;padding:14px 16px;background:var(--bg4);
+  border:2px solid var(--border);border-radius:var(--radius);margin-bottom:10px;cursor:pointer;transition:all .2s}
+.opt:last-of-type{margin-bottom:0}
+.opt:hover{border-color:var(--border2)}
+.opt .dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--text3);flex-shrink:0;transition:all .15s}
+.opt.sel{border-color:var(--green);background:rgba(26,158,92,.14);box-shadow:0 0 0 3px rgba(26,158,92,.2)}
+.opt.sel .dot{border-color:var(--green-light);background:var(--green-light);box-shadow:inset 0 0 0 4px var(--bg4)}
+.opt span{font-size:.97rem;font-weight:600;line-height:1.4}
+
+/* ══ ⑤ 完成動作 ══ */
+.btn-save{width:100%;min-height:66px;border:none;border-radius:var(--radius);background:linear-gradient(135deg,var(--green),var(--green-dark));
+  color:#fff;font-family:inherit;font-size:1.08rem;font-weight:900;letter-spacing:.04em;cursor:pointer;box-shadow:0 4px 18px rgba(26,158,92,.35)}
+.btn-save:not(:disabled):hover{filter:brightness(1.1)}
+.btn-save:disabled{background:var(--bg4);color:var(--text3);box-shadow:none;cursor:not-allowed}
+.btn-row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.btn-sec{min-height:60px;background:var(--bg4);border:2px solid var(--border2);border-radius:var(--radius);
+  color:var(--text);font-family:inherit;font-size:.97rem;font-weight:700;cursor:pointer;transition:all .15s}
+.btn-sec:not(:disabled):hover{background:var(--bg3);border-color:var(--text3)}
+.btn-sec:disabled{opacity:.35;cursor:not-allowed}
+
+/* ══ 已存記錄 ══ */
+.rec{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:13px;margin-bottom:10px}
+.rec-top{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.rec-badge{font-size:.73rem;font-weight:800;padding:4px 10px;border-radius:11px}
+.rec-g{background:rgba(26,158,92,.2);color:var(--green-light)}
+.rec-y{background:rgba(245,166,35,.2);color:var(--yellow-light)}
+.rec-r{background:rgba(217,43,43,.22);color:var(--red-light)}
+.rec-meta{font-size:.78rem;color:var(--text2)}
+.rec-time{font-size:.69rem;color:var(--text3);margin-left:auto;font-family:'JetBrains Mono',monospace}
+.rec-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:11px}
+.rec-actions button{min-height:48px;font-size:.78rem;background:var(--bg4);border:1px solid var(--border);border-radius:7px;color:var(--text2);font-family:inherit;cursor:pointer}
+.rec-actions button:hover{color:var(--text);border-color:var(--border2)}
+.rec-actions button.del:hover{color:var(--red-light);border-color:rgba(217,43,43,.4)}
+.empty{font-size:.8rem;color:var(--text3);text-align:center;padding:18px}
+
+/* ══ 全螢幕腳本 ══ */
+#scriptOverlay{position:fixed;inset:0;z-index:400;background:var(--bg);display:none;flex-direction:column}
+#scriptOverlay.show{display:flex}
+.so-bar{height:8px;flex-shrink:0}
+.so-bar.zg{background:var(--green)} .so-bar.zy{background:var(--yellow)} .so-bar.zr{background:var(--red)}
+.so-head{display:flex;align-items:center;gap:12px;padding:18px 22px;border-bottom:1px solid var(--border);flex-shrink:0}
+.so-zone{font-size:1.1rem;font-weight:900}
+.so-zone.zg{color:var(--green-light)} .so-zone.zy{color:var(--yellow-light)} .so-zone.zr{color:var(--red-light)}
+.so-ver{font-size:.75rem;color:var(--text3);margin-top:2px}
+.so-close{margin-left:auto;background:var(--bg4);border:1px solid var(--border2);color:var(--text);width:52px;height:52px;border-radius:50%;font-size:1.25rem;cursor:pointer;flex-shrink:0}
+.so-body{flex:1;overflow-y:auto;padding:34px 26px;display:flex;justify-content:center}
+.so-text{max-width:780px;font-size:clamp(1.35rem,3.4vw,2rem);line-height:2;letter-spacing:.01em}
+.so-foot{padding:13px 22px;border-top:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;flex-wrap:wrap}
+.so-foot .ff{font-size:.75rem;color:var(--text3)}
+.so-fontbtn{display:flex;gap:8px;margin-left:auto}
+.so-fontbtn button{width:52px;height:52px;background:var(--bg4);border:1px solid var(--border2);border-radius:9px;color:var(--text);font-size:1rem;cursor:pointer;font-family:inherit}
+
+#toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:13px 24px;border-radius:26px;font-size:.88rem;font-weight:600;box-shadow:var(--shadow);z-index:900;opacity:0;pointer-events:none;transition:opacity .3s;white-space:nowrap}
+#toast.show{opacity:1}
+#toast.ok{border-color:var(--green);color:var(--green-light)}
+#toast.err{border-color:var(--red);color:#FF6B6B}
+
+/* ── A4 記錄表（預覽與列印共用） ── */
+#printArea{display:none}
+.sheet{background:#fff;color:#000;font-family:'Noto Sans TC',sans-serif;font-size:12pt;line-height:1.5;
+  width:210mm;max-width:100%;padding:14mm;margin:0 auto;box-sizing:border-box}
+.sheet .p-title{text-align:center;font-size:15pt;font-weight:900;margin-bottom:2mm}
+.sheet .p-sub{text-align:center;font-size:9pt;color:#444;margin-bottom:5mm}
+.sheet table{width:100%;border-collapse:collapse;margin-bottom:4mm}
+.sheet td{border:1px solid #000;padding:2.6mm 3mm;font-size:11pt;vertical-align:top}
+.sheet td.k{background:#f0f0f0;font-weight:700;width:32%;white-space:nowrap}
+.sheet .p-zone{font-weight:900}
+.sheet .p-lbl{font-weight:700;margin:2mm 0 1mm}
+.sheet .p-script{border:1px solid #000;padding:4mm;font-size:11pt;line-height:1.9;margin-bottom:4mm}
+.sheet .p-foot{font-size:8.5pt;color:#333;line-height:1.5;margin-top:3mm}
+.sheet .p-sign{display:flex;justify-content:space-between;gap:8mm;margin-top:8mm;font-size:11pt}
+.sheet .p-stamp{font-size:8.5pt;color:#333;text-align:right;margin-top:2mm}
+
+#previewOverlay{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.88);display:none;flex-direction:column}
+#previewOverlay.show{display:flex}
+.pv-bar{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.pv-t{font-size:.86rem;font-weight:800}
+.pv-bar button{min-height:46px;padding:0 16px;background:var(--bg4);border:1px solid var(--border2);border-radius:9px;color:var(--text);font-family:inherit;font-size:.86rem;font-weight:700;cursor:pointer}
+.pv-bar button:hover{background:var(--bg3)}
+.pv-body{flex:1;overflow:auto;padding:18px 12px;display:flex;justify-content:center;align-items:flex-start}
+.pv-body .sheet{box-shadow:0 10px 40px rgba(0,0,0,.6)}
+
+@media print{
+  @page{size:A4;margin:14mm}
+  html,body{background:#fff!important;color:#000!important}
+  body>*{display:none!important}
+  #printArea{display:block!important}
+  .sheet{width:auto;max-width:none;padding:0;margin:0;box-shadow:none!important}
+}
+@media (max-width:400px){
+  .zone-head,.zone-row{grid-template-columns:62px 1fr 1fr 62px}
+  .act-primary{font-size:1.06rem}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ 登入 ══ -->
+<div id="loginGate">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="icon">🩺</div>
+      <h1>Quick SDM 溝通工具</h1>
+      <p>急診 ECPR 預後分層溝通（附件 7.2／7.3）<br>登入後員編自動帶入執行醫師欄位</p>
+    </div>
+    <div class="fg">
+      <label>員編</label>
+      <input id="inEmpId" placeholder="例：D12345" autocomplete="off" oninput="lookupDoc()">
+    </div>
+    <div class="fg">
+      <label>醫師姓名</label>
+      <input id="inEmpName" placeholder="輸入員編後自動帶入" autocomplete="off">
+      <div id="docHint" class="doc-hint"></div>
+    </div>
+    <button class="btn-login" onclick="doLogin()">登入</button>
+    <p class="login-hint">若已在 ECPR 主系統登入，本頁會自動沿用，不需再登入。<br>名冊查無的員編，第一次輸入姓名後本裝置會記住。</p>
+  </div>
+</div>
+
+<!-- ══ 主畫面 ══ -->
+<div id="app">
+  <div class="top-nav">
+    <button class="nav-back" id="navBack" onclick="goBack()" aria-label="返回">←</button>
+    <div class="nav-icon" id="navIcon">🩺</div>
+    <div>
+      <div class="nav-title" id="navTitle">Quick SDM 溝通工具</div>
+      <div class="nav-sub" id="navSub">紙本切點 5／10　·　附件 7.2／7.3</div>
+    </div>
+    <div class="user-chip"><b id="chipDoc">—</b><button class="chip-logout" onclick="logout()">登出</button></div>
+  </div>
+
+  <!-- ══ 首頁 ══ -->
+  <div class="wrap" id="pageHub">
+    <div id="ssBadge" class="ss-badge" style="display:none"></div>
+    <button class="entry" onclick="startNew()">
+      <span class="entry-ico">🩺</span>
+      <span>
+        <span class="entry-t">開始 Quick SDM 評估</span>
+        <span class="entry-s">ECMO 建立後取得 ABG，即執行預後分層溝通</span>
+      </span>
+      <span class="entry-go">→</span>
+    </button>
+
+    <div class="step"><span class="step-n">✓</span><div><div class="step-t">已存記錄</div><div class="step-s">本裝置保存 · 可重新列印</div></div></div>
+    <div class="card"><div id="recList"><div class="empty">尚無記錄</div></div></div>
+  </div>
+
+  <!-- ══ 評估工具 ══ -->
+  <div class="wrap" id="pageTool" style="display:none">
+
+    <!-- ① 病人資訊 -->
+    <div class="step"><span class="step-n">1</span><div><div class="step-t">病人資訊</div><div class="step-s">供記錄與列印，可留空</div></div></div>
+    <div class="card">
+      <div class="grid2">
+        <div class="f"><label>病歷號</label><input id="fChart" placeholder="01234567"></div>
+        <div class="f"><label>病人姓名</label><input id="fName" placeholder="陳大華"></div>
+      </div>
+    </div>
+
+    <!-- ② ABG 判定 -->
+    <div class="step"><span class="step-n">2</span><div><div class="step-t">ABG 判定</div><div class="step-s">輸入 Lactate／pH，自動判區</div></div></div>
+    <div class="card">
+      <button type="button" class="std-toggle" id="stdToggle" onclick="toggleStd()">📋 三區判定標準　▼</button>
+      <div class="zone-table" id="zoneTable" style="display:none">
+        <div class="zone-head"><span>區間</span><span>Lactate</span><span>pH</span><span>預後</span></div>
+        <div class="zone-row zg" id="row0"><span>✅ 良好</span><span>&lt; 5</span><span>≥ 7.0</span><span class="zt-out">相對較佳</span></div>
+        <div class="zone-row zy" id="row1"><span>⚠️ 灰色</span><span>5 – 10</span><span>6.9 – 7.0</span><span class="zt-out">不確定</span></div>
+        <div class="zone-row zr" id="row2"><span>❌ 高風險</span><span>&gt; 10</span><span>&lt; 6.9</span><span class="zt-out">&lt; 5%</span></div>
+      </div>
+      <p class="std-note" id="stdNote" style="display:none">良好區需 Lac＜5 <b>且</b> pH≧7.0；灰色區與高風險區任一條件符合即歸入。切點依附件 7.2 紙本標準。</p>
+
+      <div class="qbox">
+        <div class="qhd"><label>Lactate (mmol/L)</label><span class="qcut">切點 5 · 10</span>
+          <button type="button" class="qclear" onclick="clearVal('fLac')">清除</button></div>
+        <div class="stepper">
+          <button type="button" onclick="bump('fLac',-1)" aria-label="減 0.1">−</button>
+          <input id="fLac" class="big-num" type="number" step="0.1" inputmode="decimal" placeholder="—" oninput="classify()">
+          <button type="button" onclick="bump('fLac',1)" aria-label="加 0.1">＋</button>
+        </div>
+        <div class="qchips" id="chipLac"></div>
+      </div>
+
+      <div class="qbox">
+        <div class="qhd"><label>pH</label><span class="qcut">切點 6.9 · 7.0</span>
+          <button type="button" class="qclear" onclick="clearVal('fPH')">清除</button></div>
+        <div class="stepper">
+          <button type="button" onclick="bump('fPH',-1)" aria-label="減 0.01">−</button>
+          <input id="fPH" class="big-num" type="number" step="0.01" inputmode="decimal" placeholder="—" oninput="classify()">
+          <button type="button" onclick="bump('fPH',1)" aria-label="加 0.01">＋</button>
+        </div>
+        <div class="qchips" id="chipPH"></div>
+      </div>
+
+      <p class="qhint">點選快速定位（顏色即所屬區間），再用 ＋／− 微調成 ABG 實際數值，也可直接鍵入。</p>
+
+      <div id="verdict">
+        <div class="v-zone" id="vZone"></div>
+        <div class="v-rate" id="vRate"></div>
+        <div class="v-act" id="vAct"></div>
+      </div>
+
+      <button class="act-primary" id="btnScript" disabled onclick="openScript()">
+        <span id="apMain">📢 全螢幕顯示溝通腳本</span>
+        <span class="ap-sub" id="apSub">請先輸入 Lactate 或 pH</span>
+      </button>
+    </div>
+
+    <!-- ③ 溝通對象 -->
+    <div class="step"><span class="step-n">3</span><div><div class="step-t">溝通對象</div><div class="step-s">關係、姓名與溝通方式</div></div></div>
+    <div class="card">
+      <div class="f">
+        <label>與病人關係</label>
+        <select id="fRelSel" onchange="onRelChange()">
+          <option value="">請選擇…</option>
+          <option>配偶</option><option>兒子</option><option>女兒</option>
+          <option>父親</option><option>母親</option><option>兄弟姊妹</option>
+          <option>孫子女</option><option>媳婦／女婿</option><option>其他親屬</option>
+          <option>法定代理人</option><option value="__other">其他（自行輸入）</option>
+        </select>
+        <input id="fRelOther" placeholder="請輸入關係" style="display:none;margin-top:9px">
+      </div>
+      <div class="f">
+        <label>對象姓名</label>
+        <div class="name-row">
+          <input id="fContact" placeholder="陳小美">
+          <button type="button" class="pen-btn" onclick="openPad()" aria-label="開啟手寫板" title="手寫輸入">✍️</button>
+        </div>
+        <div class="ink-thumb" id="inkThumb">
+          <img id="inkImg" alt="手寫姓名">
+          <button type="button" onclick="clearInk()">✕ 清除手寫</button>
+        </div>
+      </div>
+      <div class="f">
+        <label>溝通方式</label>
+        <div class="seg" id="segMode">
+          <button type="button" data-m="到場" onclick="pickMode(this)"><span class="sg-ico">🏥</span>到場</button>
+          <button type="button" data-m="電話" onclick="pickMode(this)"><span class="sg-ico">📞</span>電話</button>
+        </div>
+      </div>
+      <div class="f"><label>溝通時間</label><input id="fTime" type="time"></div>
+    </div>
+
+    <!-- ④ 治療目標 -->
+    <div class="step"><span class="step-n">4</span><div><div class="step-t">治療目標確認</div><div class="step-s">附件 7.3 · 可留待家屬討論</div></div></div>
+    <div class="card">
+      <div id="goalOpts">
+        <div class="opt" data-g="積極治療（持續 ECMO）" onclick="pickGoal(this)"><div class="dot"></div><span>積極治療（持續 ECMO）</span></div>
+        <div class="opt" data-g="調整治療目標（含緩和照護）" onclick="pickGoal(this)"><div class="dot"></div><span>調整治療目標（含緩和照護）</span></div>
+        <div class="opt" data-g="待家屬討論後決定" onclick="pickGoal(this)"><div class="dot"></div><span>待家屬討論後決定</span></div>
+      </div>
+      <div class="f" style="margin-top:12px"><label>備註</label><textarea id="fNote" placeholder="記錄溝通內容、家屬反應…"></textarea></div>
+    </div>
+
+    <!-- ⑤ 完成 -->
+    <div class="step"><span class="step-n">5</span><div><div class="step-t">完成</div><div class="step-s">存檔後歸入病歷</div></div></div>
+    <div class="card">
+      <div class="grid2" style="margin-bottom:14px">
+        <div class="f"><label>執行醫師員編</label><input id="fDocId" disabled></div>
+        <div class="f"><label>姓名</label><input id="fDocName" disabled></div>
+      </div>
+      <button class="btn-save" id="btnSave" disabled onclick="saveRecord()">💾 存檔</button>
+      <div class="btn-row2">
+        <button class="btn-sec" id="btnPreview" disabled onclick="previewCurrent()">👁️ 預覽 A4</button>
+        <button class="btn-sec" id="btnPrint" disabled onclick="printCurrent()">🖨️ 列印</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ 全螢幕腳本 ══ -->
+<div id="scriptOverlay">
+  <div class="so-bar" id="soBar"></div>
+  <div class="so-head">
+    <div><div class="so-zone" id="soZone"></div><div class="so-ver" id="soVer"></div></div>
+    <button class="so-close" onclick="closeScript()">✕</button>
+  </div>
+  <div class="so-body"><div class="so-text" id="soText"></div></div>
+  <div class="so-foot">
+    <div class="ff" id="soFoot"></div>
+    <div class="so-fontbtn"><button onclick="scriptFont(-1)">A−</button><button onclick="scriptFont(1)">A＋</button></div>
+  </div>
+</div>
+
+<!-- ══ A4 預覽 ══ -->
+<div id="previewOverlay">
+  <div class="pv-bar">
+    <span class="pv-t">A4 預覽 — Quick SDM 執行記錄表</span>
+    <button onclick="printFromPreview()" style="margin-left:auto">🖨️ 列印</button>
+    <button onclick="downloadFromPreview()">⬇️ 下載 HTML</button>
+    <button onclick="closePreview()">✕ 關閉</button>
+  </div>
+  <div class="pv-body" id="pvBody"></div>
+</div>
+
+<!-- ══ 手寫板 ══ -->
+<div id="padOverlay">
+  <div class="pad-hd">
+    <div><div class="pad-t">手寫對象姓名</div><div class="pad-s">用手指或觸控筆直接書寫，將列印於記錄表</div></div>
+  </div>
+  <canvas id="padCanvas"></canvas>
+  <div class="pad-ft">
+    <button type="button" onclick="clearPad()">清除重寫</button>
+    <button type="button" onclick="closePad()">取消</button>
+    <button type="button" class="ok" onclick="savePad()">✓ 完成</button>
+  </div>
+</div>
+
+<div id="confirmModal" class="modal">
+  <div class="modal-box">
+    <div class="modal-title" id="cfTitle"></div>
+    <div class="modal-msg" id="cfMsg"></div>
+    <div class="modal-btns">
+      <button class="btn-mcancel" onclick="cfClose()">取消</button>
+      <button class="btn-mok" id="cfOk">確定</button>
+    </div>
+  </div>
+</div>
+
+<div id="printArea"></div>
+<div id="toast"></div>
+
+<script>
+/* ══════════ 醫師名冊 ══════════
+   可直接在此填入院內急診主治醫師名單，輸入員編即自動帶入姓名。
+   未列名者第一次登入手動輸入姓名，本裝置會記住。 */
+const DOC_ROSTER = {
+  // 'D12345': '王大明',
+};
+
+/* ══════════ 三區資料 ══════════ */
+const ZONES = [
+  { key:'zg', name:'良好區', ver:'版本一', icon:'✅', rate:'預後相對較佳',
+    act:'積極 ECMO 支持。說明已爭取到機會，仍需時間觀察腦部功能恢復。',
+    short:'Lac＜5 且 pH≧7.0',
+    script:'○○先生／女士的家屬您好，我是急診主治醫師○○○。病人到院時心跳已經停止，我們同時進行心肺復甦術並裝上了葉克膜（ECMO）維持循環。目前抽血的數值顯示身體缺氧的程度還在相對可以接受的範圍，這代表我們爭取到了機會，但仍需要時間觀察腦部功能是否能恢復。我們會積極治療，並隨時向您說明變化。' },
+  { key:'zy', name:'灰色區', ver:'版本二', icon:'⚠️', rate:'不確定性高',
+    act:'持續支持並說明不確定性，同時植入善終思考的種子。',
+    short:'Lac 5–10 或 pH 6.9–7.0',
+    script:'病人目前已裝上葉克膜維持循環。抽血結果顯示缺氧的程度偏高，落在不確定的範圍——有機會恢復，但也可能無法恢復腦部功能，我們現在沒有辦法給您一個肯定的答案。我們會繼續盡力支持，也會隨著病況變化隨時向您說明。同時我想先讓您有個心理準備：如果後續情況不如預期，我們也會一起討論怎麼做對病人最好。這段時間如果您有任何疑問，或想讓其他家人一起了解，都可以告訴我。' },
+  { key:'zr', name:'高風險區', ver:'版本三', icon:'❌', rate:'文獻存活率 ＜ 5%',
+    act:'須由急診主治醫師親自執行。誠實告知預後，與家屬共同討論治療目標。',
+    short:'Lac＞10 或 pH＜6.9',
+    script:'我必須誠實地向您說明。病人抽血的數值顯示身體缺氧非常嚴重，依照國際文獻，這樣的情況能夠存活出院的機會不到百分之五，即使救回來，腦部功能受損的可能性也很高。我們現在需要一起討論的，不是要不要救，而是什麼樣的照顧對病人最好——我們可以繼續目前的積極治療，也可以把重點放在讓他舒適、不受苦。您可以先想一想，也可以問我任何問題。' }
+];
+
+/* ══════════ 儲存 ══════════ */
+const store = (()=>{
+  let ok=true; try{const k='__t';localStorage.setItem(k,'1');localStorage.removeItem(k);}catch(e){ok=false;}
+  const mem={};
+  return{ get:k=>{try{return ok?localStorage.getItem(k):mem[k];}catch(e){return mem[k];}},
+          set:(k,v)=>{try{ok?localStorage.setItem(k,v):(mem[k]=v);}catch(e){mem[k]=v;}},
+          del:k=>{try{ok?localStorage.removeItem(k):(delete mem[k]);}catch(e){delete mem[k];}} };
+})();
+
+let DOC=null, curZone=-1, mode='', goal='', records=[], scriptScale=1, pvRecord=null;
+
+/* ══════════ 登入 ══════════ */
+function learnedRoster(){ try{return JSON.parse(store.get('sdm_roster')||'{}');}catch(e){return {};} }
+function rosterName(id){ return DOC_ROSTER[id] || learnedRoster()[id] || ''; }
+function rememberDoc(id,name){ const r=learnedRoster(); r[id]=name; store.set('sdm_roster',JSON.stringify(r)); }
+function lookupDoc(){
+  const id=document.getElementById('inEmpId').value.trim().toUpperCase();
+  const nameEl=document.getElementById('inEmpName'), hint=document.getElementById('docHint');
+  if(!id){ hint.textContent=''; hint.className='doc-hint'; return; }
+  const nm=rosterName(id);
+  if(nm){ nameEl.value=nm; hint.textContent='✓ 已帶入 '+nm; hint.className='doc-hint ok'; }
+  else{ hint.textContent='名冊查無此員編，請輸入姓名（本裝置將記住）'; hint.className='doc-hint new'; }
+}
+function doLogin(){
+  const id=document.getElementById('inEmpId').value.trim().toUpperCase();
+  const nm=document.getElementById('inEmpName').value.trim();
+  if(!id){ toast('請輸入員編','err'); return; }
+  if(!nm){ toast('請輸入醫師姓名','err'); return; }
+  rememberDoc(id,nm); DOC={id,name:nm}; store.set('sdm_doc',JSON.stringify(DOC)); enterApp();
+}
+function enterApp(){
+  document.getElementById('loginGate').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('chipDoc').textContent=DOC.name+'　'+DOC.id;
+  document.getElementById('fDocId').value=DOC.id;
+  document.getElementById('fDocName').value=DOC.name;
+  const n=new Date();
+  document.getElementById('fTime').value=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+  loadRecords(); renderRecords(); sessionBadge();
+  if(FROM_APP){
+    resetForm(); showTool();
+    document.getElementById('fChart').value = QP.get('chart') || '';
+    document.getElementById('fName').value  = QP.get('name')  || '';
+    dirty=false;
+  } else showHub();
+}
+function logout(){
+  store.del('sdm_doc'); DOC=null;
+  try{ sessionStorage.setItem('sdm_manual','1'); }catch(e){}
+  document.getElementById('app').style.display='none';
+  document.getElementById('loginGate').style.display='flex';
+  document.getElementById('inEmpId').value=''; document.getElementById('inEmpName').value='';
+  document.getElementById('docHint').textContent='';
+}
+
+/* ══════════ 快選鍵 ══════════ */
+const LAC_CHIPS=[3,4.5,5,7,10,11,14,18];
+const PH_CHIPS=[7.30,7.20,7.10,7.00,6.95,6.90,6.80,6.70];
+const zLac=v=>v>10?2:(v>=5?1:0);
+const zPH=v=>v<6.9?2:(v<7.0?1:0);
+const fmt=(id,v)=>id==='fLac'?v.toFixed(1):v.toFixed(2);
+function buildChips(){
+  const cls=['g','y','r'];
+  document.getElementById('chipLac').innerHTML=LAC_CHIPS.map(v=>
+    '<button type="button" class="qchip '+cls[zLac(v)]+'" data-v="'+v+'" onclick="setVal(\'fLac\','+v+')">'+v.toFixed(1)+'</button>').join('');
+  document.getElementById('chipPH').innerHTML=PH_CHIPS.map(v=>
+    '<button type="button" class="qchip '+cls[zPH(v)]+'" data-v="'+v+'" onclick="setVal(\'fPH\','+v+')">'+v.toFixed(2)+'</button>').join('');
+}
+function setVal(id,v){ document.getElementById(id).value=fmt(id,v); classify(); }
+function clearVal(id){ document.getElementById(id).value=''; classify(); }
+function bump(id,d){
+  const el=document.getElementById(id), st=(id==='fLac'?0.1:0.01);
+  let v=parseFloat(el.value);
+  v=isNaN(v)?(id==='fLac'?5:7.00):v+d*st;
+  if(v<0)v=0;
+  el.value=fmt(id,v); classify();
+}
+function syncChips(){
+  [['chipLac','fLac'],['chipPH','fPH']].forEach(([c,f])=>{
+    const cur=parseFloat(document.getElementById(f).value);
+    document.querySelectorAll('#'+c+' .qchip').forEach(b=>
+      b.classList.toggle('sel', !isNaN(cur) && Math.abs(parseFloat(b.dataset.v)-cur)<1e-9));
+  });
+}
+
+/* ══════════ 判區（紙本切點 5／10 · pH 6.9／7.0） ══════════ */
+function classify(){
+  const lac=parseFloat(document.getElementById('fLac').value);
+  const ph=parseFloat(document.getElementById('fPH').value);
+  const hL=!isNaN(lac), hP=!isNaN(ph);
+  let lL=-1,pL=-1;
+  if(hL) lL=zLac(lac);
+  if(hP) pL=zPH(ph);
+  ['row0','row1','row2'].forEach(i=>document.getElementById(i).classList.remove('hl'));
+
+  const v=document.getElementById('verdict'), btn=document.getElementById('btnScript');
+  if(lL<0&&pL<0){
+    curZone=-1; v.className=''; btn.className='act-primary';
+    document.getElementById('apMain').textContent='📢 全螢幕顯示溝通腳本';
+    document.getElementById('apSub').textContent='請先輸入 Lactate 或 pH';
+    syncChips(); refreshButtons(); return;
+  }
+  curZone=Math.max(lL,pL);
+  const z=ZONES[curZone];
+  document.getElementById('row'+curZone).classList.add('hl');
+
+  v.className='on '+z.key;
+  document.getElementById('vZone').textContent=z.icon+'　'+z.name;
+  document.getElementById('vRate').textContent=z.rate+'　·　'+z.short;
+  document.getElementById('vAct').textContent=z.act+(hL&&hP?'':'（僅輸入單一數值，建議兩者皆確認）');
+
+  btn.className='act-primary '+z.key;
+  document.getElementById('apMain').textContent='📢 全螢幕顯示溝通腳本';
+  document.getElementById('apSub').textContent=z.name+'　'+z.ver;
+  syncChips(); refreshButtons(); markDirty();
+}
+function refreshButtons(){
+  const r=curZone>=0;
+  ['btnScript','btnSave','btnPreview','btnPrint'].forEach(id=>document.getElementById(id).disabled=!r);
+}
+
+/* ══════════ 選項 ══════════ */
+function pickMode(b){ markDirty(); mode=b.dataset.m; document.querySelectorAll('#segMode button').forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); }
+function pickGoal(e){ markDirty(); goal=e.dataset.g; document.querySelectorAll('#goalOpts .opt').forEach(x=>x.classList.remove('sel')); e.classList.add('sel'); }
+
+/* ══════════ 主系統帶入的案件 ══════════ */
+const QP = (function(){ try{ return new URLSearchParams(location.search); }catch(e){ return new URLSearchParams(); } })();
+const FROM_APP = QP.has('caseId');
+const CASE_ID  = QP.get('caseId') || '';
+
+/* ══════════ 頁面切換 ══════════ */
+let dirty=false;
+function markDirty(){ dirty=true; }
+
+function showHub(){
+  document.getElementById('pageTool').style.display='none';
+  document.getElementById('pageHub').style.display='block';
+  document.getElementById('navBack').classList.remove('on');
+  document.getElementById('navIcon').style.display='flex';
+  document.getElementById('navTitle').textContent='Quick SDM 溝通工具';
+  document.getElementById('navSub').textContent='紙本切點 5／10　·　附件 7.2／7.3';
+  window.scrollTo(0,0);
+}
+function showTool(){
+  document.getElementById('pageHub').style.display='none';
+  document.getElementById('pageTool').style.display='block';
+  document.getElementById('navBack').classList.add('on');
+  document.getElementById('navIcon').style.display='none';
+  document.getElementById('navTitle').textContent='Quick SDM 評估';
+  document.getElementById('navSub').textContent='附件 7.2／7.3';
+  window.scrollTo(0,0);
+}
+function startNew(){ resetForm(); showTool(); }
+function leave(){
+  if(FROM_APP){ location.href='index.html'; return; }
+  showHub();
+}
+function goBack(){
+  if(!dirty){ leave(); return; }
+  askConfirm('尚未存檔','此次評估的內容尚未存檔，返回後將不會保留。確定離開嗎？',
+             function(){ dirty=false; leave(); });
+}
+function resetForm(){
+  ['fChart','fName','fLac','fPH','fContact','fRelOther','fNote'].forEach(function(i){
+    document.getElementById(i).value='';
+  });
+  document.getElementById('fRelSel').value='';
+  document.getElementById('fRelOther').style.display='none';
+  document.querySelectorAll('#segMode button').forEach(b=>b.classList.remove('sel'));
+  document.querySelectorAll('#goalOpts .opt').forEach(b=>b.classList.remove('sel'));
+  mode=''; goal=''; clearInk();
+  const n=new Date();
+  document.getElementById('fTime').value=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+  classify();
+  dirty=false;
+}
+
+/* ══════════ 確認框 ══════════ */
+let cfCb=null;
+function askConfirm(title,msg,cb){
+  document.getElementById('cfTitle').textContent=title;
+  document.getElementById('cfMsg').textContent=msg;
+  cfCb=cb;
+  document.getElementById('confirmModal').classList.add('show');
+}
+function cfClose(){ document.getElementById('confirmModal').classList.remove('show'); cfCb=null; }
+document.getElementById('cfOk').onclick=function(){ const c=cfCb; cfClose(); if(c) c(); };
+
+/* ══════════ 判定標準收合 ══════════ */
+function toggleStd(){
+  const t=document.getElementById('zoneTable'), n=document.getElementById('stdNote'), b=document.getElementById('stdToggle');
+  const open = t.style.display==='none';
+  t.style.display = open ? 'block' : 'none';
+  n.style.display = open ? 'block' : 'none';
+  b.textContent = '📋 三區判定標準　' + (open?'▲':'▼');
+}
+
+/* ══════════ 與病人關係 ══════════ */
+function onRelChange(){ markDirty();
+  const sel=document.getElementById('fRelSel'), oth=document.getElementById('fRelOther');
+  const other = sel.value==='__other';
+  oth.style.display = other ? 'block' : 'none';
+  if(other) oth.focus(); else oth.value='';
+}
+function relValue(){
+  const sel=document.getElementById('fRelSel').value;
+  if(sel==='__other') return document.getElementById('fRelOther').value.trim();
+  return sel;
+}
+
+/* ══════════ 手寫板 ══════════ */
+let inkData='', padCtx=null, padDrawing=false, padInk=false;
+
+function openPad(){
+  const ov=document.getElementById('padOverlay'), c=document.getElementById('padCanvas');
+  ov.classList.add('show');
+  requestAnimationFrame(function(){
+    const r=c.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
+    c.width=Math.round(r.width*dpr); c.height=Math.round(r.height*dpr);
+    padCtx=c.getContext('2d');
+    padCtx.scale(dpr,dpr);
+    padCtx.fillStyle='#fff'; padCtx.fillRect(0,0,r.width,r.height);
+    padCtx.strokeStyle='#000'; padCtx.lineWidth=4.5;
+    padCtx.lineCap='round'; padCtx.lineJoin='round';
+    padInk=false;
+  });
+}
+function padPos(e){
+  const r=document.getElementById('padCanvas').getBoundingClientRect();
+  return {x:e.clientX-r.left, y:e.clientY-r.top};
+}
+function initPad(){
+  const c=document.getElementById('padCanvas');
+  c.addEventListener('pointerdown',function(e){
+    if(!padCtx) return;
+    padDrawing=true; try{c.setPointerCapture(e.pointerId);}catch(err){}
+    const p=padPos(e); padCtx.beginPath(); padCtx.moveTo(p.x,p.y);
+    padCtx.lineTo(p.x+0.1,p.y+0.1); padCtx.stroke(); padInk=true;
+    e.preventDefault();
+  });
+  c.addEventListener('pointermove',function(e){
+    if(!padDrawing||!padCtx) return;
+    const p=padPos(e); padCtx.lineTo(p.x,p.y); padCtx.stroke(); e.preventDefault();
+  });
+  ['pointerup','pointercancel','pointerleave'].forEach(function(ev){
+    c.addEventListener(ev,function(){ padDrawing=false; });
+  });
+}
+function clearPad(){
+  const c=document.getElementById('padCanvas');
+  if(!padCtx) return;
+  const r=c.getBoundingClientRect();
+  padCtx.fillStyle='#fff'; padCtx.fillRect(0,0,r.width,r.height);
+  padCtx.strokeStyle='#000'; padInk=false;
+}
+function closePad(){ document.getElementById('padOverlay').classList.remove('show'); padDrawing=false; }
+
+/* 裁掉四周空白，縮小檔案並讓列印時字大小合適 */
+function trimCanvas(c){
+  const ctx=c.getContext('2d'), w=c.width, h=c.height;
+  const d=ctx.getImageData(0,0,w,h).data;
+  let x0=w,y0=h,x1=-1,y1=-1;
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+    const i=(y*w+x)*4;
+    if(d[i]<230||d[i+1]<230||d[i+2]<230){
+      if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y;
+    }
+  }
+  if(x1<0) return null;
+  const pad=14;
+  x0=Math.max(0,x0-pad); y0=Math.max(0,y0-pad);
+  x1=Math.min(w-1,x1+pad); y1=Math.min(h-1,y1+pad);
+  const cw=x1-x0+1, ch=y1-y0+1;
+  const out=document.createElement('canvas');
+  const scale=Math.min(1, 900/cw);
+  out.width=Math.round(cw*scale); out.height=Math.round(ch*scale);
+  const octx=out.getContext('2d');
+  octx.fillStyle='#fff'; octx.fillRect(0,0,out.width,out.height);
+  octx.drawImage(c,x0,y0,cw,ch,0,0,out.width,out.height);
+  return out;
+}
+function savePad(){
+  if(!padInk){ toast('尚未書寫','err'); return; }
+  const out=trimCanvas(document.getElementById('padCanvas'));
+  if(!out){ toast('尚未書寫','err'); return; }
+  inkData=out.toDataURL('image/png');
+  document.getElementById('inkImg').src=inkData;
+  document.getElementById('inkThumb').classList.add('on');
+  closePad(); markDirty();
+  toast('已寫入對象姓名','ok');
+}
+function clearInk(){
+  inkData='';
+  document.getElementById('inkThumb').classList.remove('on');
+  document.getElementById('inkImg').removeAttribute('src');
+}
+
+/* ══════════ 全螢幕腳本 ══════════ */
+function fillScript(z,pName,dName){
+  let s=z.script;
+  if(pName) s=s.replace('○○先生／女士', pName+' 的家屬');
+  if(dName) s=s.replace('○○○', dName);
+  return s;
+}
+function openScript(){
+  if(curZone<0) return;
+  const z=ZONES[curZone], pn=document.getElementById('fName').value.trim();
+  document.getElementById('soBar').className='so-bar '+z.key;
+  const ze=document.getElementById('soZone'); ze.textContent=z.icon+' '+z.name; ze.className='so-zone '+z.key;
+  document.getElementById('soVer').textContent='溝通腳本 · '+z.ver;
+  document.getElementById('soText').textContent=fillScript(z,pn,DOC&&DOC.name);
+  document.getElementById('soFoot').textContent=(pn?'病人：'+pn+'　':'')+'執行醫師：'+(DOC?DOC.name+' '+DOC.id:'—');
+  document.getElementById('soText').style.fontSize=''; scriptScale=1;
+  document.getElementById('scriptOverlay').classList.add('show');
+}
+function closeScript(){ document.getElementById('scriptOverlay').classList.remove('show'); }
+function scriptFont(d){
+  scriptScale=Math.min(1.6,Math.max(.7,scriptScale+d*0.12));
+  const base=Math.min(2,Math.max(1.35,window.innerWidth*0.034/16));
+  document.getElementById('soText').style.fontSize=(base*scriptScale)+'rem';
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeScript(); closePreview(); closePad(); cfClose(); } });
+
+/* ══════════ 存檔 ══════════ */
+function collect(){
+  const z=ZONES[curZone];
+  return{ id:'r'+Date.now(), caseId:CASE_ID,
+    chart:document.getElementById('fChart').value.trim(),
+    name:document.getElementById('fName').value.trim(),
+    lac:document.getElementById('fLac').value.trim(),
+    ph:document.getElementById('fPH').value.trim(),
+    zoneIdx:curZone, zoneName:z.name, zoneKey:z.key, ver:z.ver,
+    rel:relValue(),
+    contact:document.getElementById('fContact').value.trim(), contactInk:inkData,
+    mode:mode, time:document.getElementById('fTime').value, goal:goal,
+    note:document.getElementById('fNote').value.trim(),
+    docId:DOC.id, docName:DOC.name, saved:new Date().toISOString() };
+}
+function loadRecords(){ try{records=JSON.parse(store.get('sdm_rec_'+DOC.id)||'[]');}catch(e){records=[];} }
+function persist(){ store.set('sdm_rec_'+DOC.id, JSON.stringify(records)); }
+function saveRecord(){
+  if(curZone<0){ toast('請先輸入 Lac／pH','err'); return; }
+  const r=collect(); records.unshift(r); persist(); renderRecords();
+  dirty=false;
+  toast('已存檔　'+r.zoneName+'，可於首頁列印','ok');
+  if(!FROM_APP) setTimeout(showHub,700);
+}
+function delRecord(id){
+  askConfirm('刪除記錄','刪除後無法復原，確定要刪除這筆 Quick SDM 記錄嗎？',function(){
+    records=records.filter(r=>r.id!==id); persist(); renderRecords(); toast('已刪除','ok');
+  });
+}
+function renderRecords(){
+  const el=document.getElementById('recList');
+  if(!records.length){ el.innerHTML='<div class="empty">尚無記錄</div>'; return; }
+  el.innerHTML=records.map(r=>{
+    const t=new Date(r.saved).toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const bk={zg:'rec-g',zy:'rec-y',zr:'rec-r'}[r.zoneKey];
+    return '<div class="rec"><div class="rec-top">'+
+      '<span class="rec-badge '+bk+'">'+r.zoneName+' · '+r.ver+'</span>'+
+      '<span class="rec-meta">'+(r.name||'未命名')+(r.chart?'（'+r.chart+'）':'')+' · Lac '+(r.lac||'—')+' / pH '+(r.ph||'—')+'</span>'+
+      '<span class="rec-time">'+t+'</span></div>'+
+      '<div class="rec-actions">'+
+        '<button onclick="previewRecord(\''+r.id+'\')">👁️ 預覽</button>'+
+        '<button onclick="printRecord(\''+r.id+'\')">🖨️ 列印</button>'+
+        '<button onclick="downloadRecord(\''+r.id+'\')">⬇️ 下載</button>'+
+        '<button class="del" onclick="delRecord(\''+r.id+'\')">刪除</button>'+
+      '</div></div>';
+  }).join('');
+}
+
+/* ══════════ A4 記錄表 ══════════ */
+function esc(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function modeLabel(m){ return m==='到場'?'☑ 到場　☐ 電話':(m==='電話'?'☐ 到場　☑ 電話':'☐ 到場　☐ 電話'); }
+function goalLabel(g){ return ['積極治療（持續 ECMO）','調整治療目標（含緩和照護）','待家屬討論後決定'].map(o=>(g===o?'☑ ':'☐ ')+o).join('　'); }
+
+const SHEET_CSS = ".sheet{background:#fff;color:#000;font-family:'Noto Sans TC',sans-serif;font-size:12pt;line-height:1.5;width:210mm;max-width:100%;padding:14mm;margin:0 auto;box-sizing:border-box}"+
+".sheet .p-title{text-align:center;font-size:15pt;font-weight:900;margin-bottom:2mm}"+
+".sheet .p-sub{text-align:center;font-size:9pt;color:#444;margin-bottom:5mm}"+
+".sheet table{width:100%;border-collapse:collapse;margin-bottom:4mm}"+
+".sheet td{border:1px solid #000;padding:2.6mm 3mm;font-size:11pt;vertical-align:top}"+
+".sheet td.k{background:#f0f0f0;font-weight:700;width:32%;white-space:nowrap}"+
+".sheet .p-zone{font-weight:900}.sheet .p-lbl{font-weight:700;margin:2mm 0 1mm}"+
+".sheet .p-script{border:1px solid #000;padding:4mm;font-size:11pt;line-height:1.9;margin-bottom:4mm}"+
+".sheet .p-foot{font-size:8.5pt;color:#333;line-height:1.5;margin-top:3mm}"+
+".sheet .p-sign{display:flex;justify-content:space-between;gap:8mm;margin-top:8mm;font-size:11pt}"+
+".sheet .p-stamp{font-size:8.5pt;color:#333;text-align:right;margin-top:2mm}"+
+"@media print{@page{size:A4;margin:14mm}html,body{background:#fff!important}.sheet{width:auto;max-width:none;padding:0;margin:0}}";
+
+function sheetHTML(r){
+  const z=ZONES[r.zoneIdx];
+  const st=new Date(r.saved).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+  return '<div class="sheet">'+
+    '<div class="p-title">Quick SDM 執行記錄表</div>'+
+    '<div class="p-sub">急診 ECPR 作業管理程序書　附件 7.3（文件編號：急診-品管-2-0028）</div>'+
+    '<table>'+
+    (r.caseId ? '<tr><td class="k">案件編號</td><td>'+esc(r.caseId)+'</td></tr>' : '')+
+    '<tr><td class="k">病歷號／姓名</td><td>病歷號：'+esc(r.chart||'________')+'　姓名：'+esc(r.name||'________')+'</td></tr>'+
+    '<tr><td class="k">ABG 結果</td><td>Lactate：'+esc(r.lac||'____')+' mmol/L　　pH：'+esc(r.ph||'____')+'</td></tr>'+
+    '<tr><td class="k">SDM 判定</td><td class="p-zone">'+esc(r.zoneName)+'（'+esc(z.short)+'）</td></tr>'+
+    '<tr><td class="k">使用腳本</td><td>'+esc(r.ver)+'</td></tr>'+
+    '<tr><td class="k">溝通對象</td><td>關係：'+esc(r.rel||'________')+'　姓名：'+
+      (r.contactInk ? '<img src="'+r.contactInk+'" alt="手寫姓名" style="height:11mm;vertical-align:middle">'
+                    : esc(r.contact||'________'))+'　'+modeLabel(r.mode)+'</td></tr>'+
+    '<tr><td class="k">溝通時間</td><td>'+esc(r.time||'____:____')+'</td></tr>'+
+    '<tr><td class="k">治療目標確認</td><td>'+goalLabel(r.goal)+'</td></tr>'+
+    '<tr><td class="k">備註</td><td>'+esc(r.note).replace(/\n/g,'<br>')+'</td></tr>'+
+    '</table>'+
+    '<div class="p-lbl">溝通腳本（'+esc(r.ver)+'）</div>'+
+    '<div class="p-script">'+esc(fillScript(z,r.name,r.docName))+'</div>'+
+    '<div class="p-foot">※ 本表應於每次 Quick SDM 執行後立即填寫並歸入病歷；單位另留存五年。<br>'+
+      '※ 判定僅供家屬溝通準備，不作為 ECPR 啟動或停止之決策依據。高風險區之溝通須由急診主治醫師親自執行。</div>'+
+    '<div class="p-sign"><div>執行醫師（簽名）：__________________</div><div>員編：'+esc(r.docId)+'　'+esc(r.docName)+'</div></div>'+
+    '<div class="p-stamp">填表時間：'+st+'</div></div>';
+}
+function standaloneDoc(r,auto){
+  return '<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">'+
+    '<meta name="viewport" content="width=device-width,initial-scale=1"><title>Quick SDM 執行記錄表</title>'+
+    "<style>@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');body{margin:0;background:#fff}"+
+    SHEET_CSS+'</style></head><body'+(auto?' onload="setTimeout(function(){window.print()},250)"':'')+'>'+sheetHTML(r)+'</body></html>';
+}
+function openPreview(r){ pvRecord=r; document.getElementById('pvBody').innerHTML=sheetHTML(r); document.getElementById('previewOverlay').classList.add('show'); }
+function closePreview(){ document.getElementById('previewOverlay').classList.remove('show'); }
+function previewCurrent(){ if(curZone<0){toast('請先輸入 Lac／pH','err');return;} openPreview(collect()); }
+function previewRecord(id){ const r=records.find(x=>x.id===id); if(r) openPreview(r); }
+function printFromPreview(){ if(pvRecord) doPrint(pvRecord); }
+function downloadFromPreview(){ if(pvRecord) downloadSheet(pvRecord); }
+
+function doPrint(r){
+  const doc=standaloneDoc(r,true);
+  let w=null; try{ w=window.open('','_blank'); }catch(e){}
+  if(w&&w.document){ try{ w.document.open(); w.document.write(doc); w.document.close(); w.focus(); return; }catch(e){} }
+  try{
+    const f=document.createElement('iframe');
+    f.setAttribute('aria-hidden','true');
+    f.style.cssText='position:fixed;right:0;bottom:0;width:1px;height:1px;opacity:0;border:0';
+    f.srcdoc=standaloneDoc(r,false);
+    f.onload=function(){ try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(e){ inPlacePrint(r); } setTimeout(()=>f.remove(),1500); };
+    document.body.appendChild(f); return;
+  }catch(e){}
+  inPlacePrint(r);
+}
+function inPlacePrint(r){
+  document.getElementById('printArea').innerHTML=sheetHTML(r);
+  setTimeout(function(){ try{ window.print(); }catch(e){ toast('此環境無法列印，請用「下載 HTML」','err'); } },80);
+}
+function printCurrent(){ if(curZone<0){toast('請先輸入 Lac／pH','err');return;} doPrint(collect()); }
+function printRecord(id){ const r=records.find(x=>x.id===id); if(r) doPrint(r); }
+function downloadSheet(r){
+  try{
+    const blob=new Blob(['\ufeff'+standaloneDoc(r,false)],{type:'text/html;charset=utf-8'});
+    const url=URL.createObjectURL(blob), a=document.createElement('a');
+    a.href=url; a.download='QuickSDM_'+(r.chart||r.name||'記錄')+'_'+r.saved.slice(0,10)+'.html';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+    toast('已下載，開啟後即可列印','ok');
+  }catch(e){ toast('下載失敗','err'); }
+}
+function downloadRecord(id){ const r=records.find(x=>x.id===id); if(r) downloadSheet(r); }
+
+/* ══════════ toast ══════════ */
+let toastT;
+function toast(m,t){
+  const e=document.getElementById('toast');
+  e.textContent=m; e.className='show'+(t?' '+t:'');
+  clearTimeout(toastT); toastT=setTimeout(()=>e.className='',2200);
+}
+
+/* ══════════ 沿用 ECPR 主系統登入 ══════════ */
+/* 主系統 index.html 於同網域寫入 localStorage['ecpr_session']
+   = { cu:{username, displayname, role, unit, mvp}, expiry }（8 小時）
+   本頁僅讀取、不改寫，避免干擾主系統的續期邏輯。 */
+function readMainSession(){
+  try{
+    const raw=localStorage.getItem('ecpr_session');
+    if(!raw) return null;
+    const s=JSON.parse(raw);
+    if(!s||!s.cu||!(s.expiry>Date.now())) return null;
+    return { id:s.cu.username, name:s.cu.displayname||s.cu.username, role:(s.cu.role||'').toLowerCase(), fromMain:true };
+  }catch(e){ return null; }
+}
+function sessionBadge(){
+  const el=document.getElementById('ssBadge');
+  if(!el) return;
+  if(DOC&&DOC.fromMain){ el.style.display='block'; el.textContent='🔗 已沿用 ECPR 主系統登入　'+DOC.name+'　'+DOC.id; }
+  else{ el.style.display='none'; }
+}
+
+/* ══════════ 啟動 ══════════ */
+(function init(){
+  buildChips(); initPad();
+  // 工具頁任何輸入都視為未存檔（程式設值不會觸發 input，故 resetForm 安全）
+  document.getElementById('pageTool').addEventListener('input', markDirty);
+  // ① 直接嵌在主系統中
+  if(window.CU&&window.CU.username){
+    DOC={id:window.CU.username, name:window.CU.displayname||window.CU.username,
+         role:(window.CU.role||'').toLowerCase(), fromMain:true};
+    enterApp(); return;
+  }
+  // ② 同網域的主系統 session（8 小時內免登入）
+  let skip=false; try{ skip=sessionStorage.getItem('sdm_manual')==='1'; }catch(e){}
+  if(!skip){
+    const ms=readMainSession();
+    if(ms){ DOC=ms; enterApp(); return; }
+  }
+  // ③ 本工具自己記住的登入
+  const sv=store.get('sdm_doc');
+  if(sv){ try{ DOC=JSON.parse(sv); enterApp(); return; }catch(e){} }
+})();
+</script>
+</body>
+</html>

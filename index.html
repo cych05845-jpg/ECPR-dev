@@ -1047,6 +1047,18 @@
               </div>
               <button class="btn bgh btn-fw btn-sm" onclick="specReassess()">🔄 重新評估</button>
             </div>
+            <!-- ECMO 建立時間（Door-to-ECMO KPI） -->
+            <div id="ecmoStampCard" class="hidden" style="margin-bottom:12px">
+              <div class="f" style="margin-bottom:8px">
+                <label>ECMO 建立時間（目標 Door-to-ECMO ≦30 分鐘）</label>
+                <div style="display:flex;gap:8px">
+                  <input type="time" id="ecmoTimeInput" style="flex:1">
+                  <button class="btn bb" onclick="saveEcmoTime()" style="white-space:nowrap">記錄</button>
+                </div>
+              </div>
+              <div id="ecmoD2E" class="text-sm" style="color:var(--text3)"></div>
+            </div>
+
             <!-- 他人已啟動 → 我確認收到 -->
             <div id="mdOtherActivated" class="hidden">
               <div class="alert al-red" style="margin-bottom:12px"><span class="alert-icon" style="font-size:1.3rem">⚡</span>
@@ -1077,75 +1089,41 @@
             </div>
           </div>
 
-          <!-- SDM 評估（常駐可點） -->
+        </div><!-- end missionDecisionArea -->
+
+        <!-- ══ Quick SDM 入口（決策區之外，ECMO 建立後才顯示） ══ -->
+        <div id="missionSDMEntry" class="hidden">
           <div class="card">
             <div class="card-hd">
-              <div class="card-ico" style="background:rgba(26,107,181,.15);color:var(--blue-light)">🧬</div>
-              <div><div class="card-title">預後因子確認 — SDM</div><div class="card-sub">可選填，供家屬溝通記錄，不影響啟動決策</div></div>
-              <button class="btn bgh btn-sm" style="margin-left:auto" onclick="toggleMissionSDM()" id="missionSDMToggle">展開 ▼</button>
+              <div class="card-ico" style="background:rgba(26,107,181,.15);color:var(--blue-light)">🩺</div>
+              <div>
+                <div class="card-title">Quick SDM 預後溝通</div>
+                <div class="card-sub">ECMO 建立後取得 ABG 即執行　·　附件 7.2／7.3</div>
+              </div>
             </div>
-            <div id="missionSDMBody" class="hidden">
-              <div class="sec-title">可能原因</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
-                <button class="emt-big-btn emt-big-btn-wide" data-cause="ACS" onclick="toggleCause(this)" style="min-height:52px;padding:10px 12px">
-                  <span class="ebb-ico" style="font-size:1.2rem">❤️</span><div><span class="ebb-lbl" style="font-size:.85rem">ACS</span></div>
-                </button>
-                <button class="emt-big-btn emt-big-btn-wide" data-cause="PE" onclick="toggleCause(this)" style="min-height:52px;padding:10px 12px">
-                  <span class="ebb-ico" style="font-size:1.2rem">🫁</span><div><span class="ebb-lbl" style="font-size:.85rem">肺栓塞</span></div>
-                </button>
-                <button class="emt-big-btn emt-big-btn-wide" data-cause="myocarditis" onclick="toggleCause(this)" style="min-height:52px;padding:10px 12px">
-                  <span class="ebb-ico" style="font-size:1.2rem">🦠</span><div><span class="ebb-lbl" style="font-size:.85rem">心肌炎</span></div>
-                </button>
-                <button class="emt-big-btn emt-big-btn-wide" data-cause="toxin" onclick="toggleCause(this)" style="min-height:52px;padding:10px 12px">
-                  <span class="ebb-ico" style="font-size:1.2rem">☠️</span><div><span class="ebb-lbl" style="font-size:.85rem">毒物/藥物</span></div>
-                </button>
-                <button class="emt-big-btn emt-big-btn-wide" data-cause="hypothermia" onclick="toggleCause(this)" style="min-height:52px;padding:10px 12px">
-                  <span class="ebb-ico" style="font-size:1.2rem">🥶</span><div><span class="ebb-lbl" style="font-size:.85rem">低體溫</span></div>
-                </button>
-                <button class="emt-big-btn emt-big-btn-wide" data-cause="unknown" onclick="toggleCause(this)" style="min-height:52px;padding:10px 12px">
-                  <span class="ebb-ico" style="font-size:1.2rem">❓</span><div><span class="ebb-lbl" style="font-size:.85rem">不明原因</span></div>
-                </button>
+            <div id="sdmEntryLocked" class="alert al-yellow" style="margin-bottom:0">
+              <span class="alert-icon">⏳</span>
+              <div class="alert-body">尚未記錄 ECMO 建立時間。Quick SDM 於 ECMO 建立後、取得動脈血液氣體分析結果時執行。</div>
+            </div>
+            <div id="sdmEntryReady" class="hidden">
+              <div class="alert al-green" style="margin-bottom:12px">
+                <span class="alert-icon">✅</span>
+                <div class="alert-body">ECMO 已建立 <span id="sdmEcmoTime"></span>　可執行預後分層溝通</div>
               </div>
-              <hr>
-              <div class="sec-title">Lactate / pH 預後評估（本院實證轉譯）</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-                <div class="f"><label>Lactate (mmol/L)</label>
-                  <input type="number" id="msdmLactate" placeholder="例：6.2" step="0.1" oninput="updateMissionSDMZone()"
-                    style="font-size:1.3rem;text-align:center;padding:12px;font-family:'JetBrains Mono',monospace"></div>
-                <div class="f"><label>pH</label>
-                  <input type="number" id="msdmPH" placeholder="例：7.05" step="0.01" oninput="updateMissionSDMZone()"
-                    style="font-size:1.3rem;text-align:center;padding:12px;font-family:'JetBrains Mono',monospace"></div>
+              <button class="act-btn-confirm" id="sdmGoBtn" onclick="openQuickSDM()"
+                      style="background:linear-gradient(135deg,var(--blue),#0e4a80);box-shadow:0 4px 20px rgba(26,107,181,.4)">
+                🩺 開始 Quick SDM 評估
+              </button>
+              <div id="sdmEntryReadonly" class="hidden alert al-yellow" style="margin:12px 0 0">
+                <span class="alert-icon">👁️</span>
+                <div class="alert-body">依附件 7.2，高風險區溝通須由急診主治醫師親自執行；本角色為唯讀。</div>
               </div>
-              <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:10px">
-                <div style="display:grid;grid-template-columns:auto 1fr 1fr auto;padding:7px 12px;background:var(--bg4);border-bottom:1px solid var(--border)">
-                  <span style="font-size:.68rem;color:var(--text3)">區間</span><span style="font-size:.68rem;color:var(--text3)">Lactate</span>
-                  <span style="font-size:.68rem;color:var(--text3)">pH</span><span style="font-size:.68rem;color:var(--text3)">存活率</span>
-                </div>
-                <div class="sdm-zone-row" id="mzone-green" style="background:rgba(26,158,92,.08)">
-                  <span>✅</span><span style="font-weight:700;color:var(--green-light)">&lt;6</span>
-                  <span style="font-weight:700;color:var(--green-light)">≥7.0</span><span style="font-size:.8rem;color:var(--green-light)">≥10%</span>
-                </div>
-                <div class="sdm-zone-row" id="mzone-yellow" style="background:rgba(245,166,35,.08);border-top:1px solid var(--border)">
-                  <span>⚠️</span><span style="font-weight:700;color:#FFD060">6–11</span>
-                  <span style="font-weight:700;color:#FFD060">6.9–7.0</span><span style="font-size:.8rem;color:#FFD060">5–10%</span>
-                </div>
-                <div class="sdm-zone-row" id="mzone-red" style="background:rgba(217,43,43,.08);border-top:1px solid var(--border)">
-                  <span>❌</span><span style="font-weight:700;color:#FF8080">&gt;11</span>
-                  <span style="font-weight:700;color:#FF8080">&lt;6.9</span><span style="font-size:.8rem;color:#FF8080">&lt;5%</span>
-                </div>
-              </div>
-              <div id="msdmZoneResult" style="display:none;margin-bottom:10px"></div>
-              <div style="font-size:.7rem;color:var(--text3);line-height:1.5;margin-bottom:12px">
-                ※ 本院24例：Lac 6.23 vs 11.53；pH 7.088 vs 6.892｜切點為文獻估計值
-              </div>
-              <div class="f" style="margin-bottom:12px">
-                <label>家屬溝通記錄</label>
-                <textarea id="msdmNote" placeholder="記錄溝通內容、家屬反應..." style="min-height:72px"></textarea>
-              </div>
-              <button class="btn bb btn-fw" onclick="saveMissionSDM()">💾 儲存 SDM 評估</button>
+            </div>
+            <div style="font-size:.7rem;color:var(--text3);line-height:1.5;margin-top:10px">
+              ※ 本工具為預後溝通之準備依據，<b>不作為 ECPR 啟動或停止之決策依據</b>。
             </div>
           </div>
-        </div><!-- end missionDecisionArea -->
+        </div>
 
         <!-- ══ OR / 體循師 操作區 ══ -->
         <div id="missionReceiveArea" class="hidden">
@@ -2440,7 +2418,6 @@ function goToMissionFromNotify() {
 // ════════════════════════════════════════
 let missionCase = null;
 let missionPollInterval = null;
-let missionSDMOpen = false;
 
 async function loadMission() {
   // 優先用快取（5 秒新鮮期）
@@ -2564,6 +2541,7 @@ async function loadMission() {
     extraEl.innerHTML = '';
   }
 
+  renderSDMEntry(c);
   startMissionPoll();
 }
 
@@ -3047,49 +3025,78 @@ function missionRecAckCancel() {
 }
 
 // ── 任務頁 SDM ─────────────────────────
-function toggleMissionSDM() {
-  missionSDMOpen = !missionSDMOpen;
-  document.getElementById('missionSDMBody').classList.toggle('hidden', !missionSDMOpen);
-  document.getElementById('missionSDMToggle').textContent = missionSDMOpen ? '收合 ▲' : '展開 ▼';
+
+/* ══════════════════════════════════════
+   Quick SDM 入口（附件 7.2／7.3）
+   ══════════════════════════════════════ */
+const SDM_EXEC_ROLES = ['dr'];              // 可執行：急診主治醫師
+const SDM_VIEW_ROLES = ['dr','np','cvs'];   // 可看到入口
+
+function renderSDMEntry(c) {
+  const entry = document.getElementById('missionSDMEntry');
+  if (!entry) return;
+  const canView = SDM_VIEW_ROLES.includes(CU.role);
+  const activated = c && c.ecprActivated && !c.ecprCancelled;
+  entry.classList.toggle('hidden', !(canView && activated));
+  if (!(canView && activated)) return;
+
+  const t = c.ecmoTime || '';
+  document.getElementById('sdmEntryLocked').classList.toggle('hidden', !!t);
+  document.getElementById('sdmEntryReady').classList.toggle('hidden', !t);
+  if (t) {
+    document.getElementById('sdmEcmoTime').textContent = '（' + t + '）';
+    const exec = SDM_EXEC_ROLES.includes(CU.role);
+    document.getElementById('sdmGoBtn').classList.toggle('hidden', !exec);
+    document.getElementById('sdmEntryReadonly').classList.toggle('hidden', exec);
+  }
+  // ECMO 時間記錄卡：已啟動且尚未記錄時顯示
+  const stamp = document.getElementById('ecmoStampCard');
+  if (stamp) {
+    stamp.classList.toggle('hidden', !activated);
+    if (activated) {
+      document.getElementById('ecmoTimeInput').value = t;
+      document.getElementById('ecmoD2E').textContent = doorToEcmoText(c);
+    }
+  }
 }
 
-function updateMissionSDMZone() {
-  const lac = parseFloat(document.getElementById('msdmLactate').value);
-  const ph  = parseFloat(document.getElementById('msdmPH').value);
-  const hasL=!isNaN(lac), hasPH=!isNaN(ph);
-  ['mzone-green','mzone-yellow','mzone-red'].forEach(id => {
-    document.getElementById(id)?.classList.remove('highlight');
-    if (document.getElementById(id)) document.getElementById(id).style.boxShadow='';
-  });
-  if (!hasL && !hasPH) { document.getElementById('msdmZoneResult').style.display='none'; return; }
-  let lacL=0, phL=0;
-  if (hasL) { if(lac>11) lacL=2; else if(lac>=6) lacL=1; }
-  if (hasPH) { if(ph<6.9) phL=2; else if(ph<=7.0) phL=1; }
-  const level = Math.max(lacL, phL);
-  const zones=['mzone-green','mzone-yellow','mzone-red'];
-  const colors=['rgba(26,158,92,.7)','rgba(245,166,35,.7)','rgba(217,43,43,.7)'];
-  document.getElementById(zones[level]).classList.add('highlight');
-  document.getElementById(zones[level]).style.boxShadow='0 0 0 2px '+colors[level];
-  const msgs=[
-    {cls:'al-green',icon:'✅',title:'有效區 — 積極說明效益',body:'存活率≥10%，建議積極說明 ECPR 效益。'},
-    {cls:'al-yellow',icon:'⚠️',title:'灰色區 — 告知不確定性',body:'存活率5–10%，誠實說明不確定性，植入善終思考種子。'},
-    {cls:'al-red',icon:'❌',title:'無效區 — 共同決策',body:'存活率<5%，誠實告知預後，與家屬共同決策。'}
-  ];
-  const m=msgs[level];
-  const el=document.getElementById('msdmZoneResult');
-  el.style.display='block';
-  el.innerHTML='<div class="alert ' + (m.cls) + '"><span class="alert-icon">' + (m.icon) + '</span><div class="alert-body"><strong>' + (m.title) + '</strong><br><span style="font-size:.82rem">' + (m.body) + '</span></div></div>';
+function doorToEcmoText(c) {
+  if (!c.ecmoTime || !c.reportTime) return '';
+  const base = new Date(c.reportTime);
+  const [h, m] = c.ecmoTime.split(':').map(Number);
+  const t = new Date(base); t.setHours(h, m, 0, 0);
+  if (t < base) t.setDate(t.getDate() + 1);
+  const min = Math.round((t - base) / 60000);
+  return 'Door-to-ECMO：' + min + ' 分鐘' + (min <= 30 ? '　✅ 達標' : '　⚠️ 超過 30 分鐘');
 }
 
-async function saveMissionSDM() {
+async function saveEcmoTime() {
   if (!missionCase) return;
+  const v = document.getElementById('ecmoTimeInput').value;
+  if (!v) { toast('請先選擇時間', 'err'); return; }
   const res = await api('updateCase', {
     caseId: missionCase.CaseID,
-    updates: { sdmCauses: selectedCauses.join(','), sdmLactate: document.getElementById('msdmLactate').value, sdmPH: document.getElementById('msdmPH').value, sdmNote: document.getElementById('msdmNote').value, sdmBy: CU.username, sdmTime: new Date().toISOString() }
+    updates: { ecmoTime: v, ecmoBy: CU.username, ecmoStampTime: new Date().toISOString() }
   });
-  if (res.success) { toast('SDM 評估已儲存', 'ok'); toggleMissionSDM(); }
-  else toast('儲存失敗', 'err');
+  if (res.success) {
+    missionCase.ecmoTime = v;
+    renderSDMEntry(missionCase);
+    toast('已記錄 ECMO 建立時間', 'ok');
+  } else toast('儲存失敗', 'err');
 }
+
+/* 開啟 Quick SDM 工具，帶入病人資料 */
+function openQuickSDM() {
+  if (!missionCase) return;
+  const q = new URLSearchParams({
+    caseId: missionCase.CaseID || '',
+    chart:  missionCase.chartNo || '',
+    name:   missionCase.ptName || ''
+  });
+  location.href = 'sdm.html?' + q.toString();
+}
+
+
 
 // specReassess 也需連到 mission page
 const _origSpecReassess = typeof specReassess === 'function' ? specReassess : null;
